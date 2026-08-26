@@ -21,6 +21,8 @@ uniform float uAudioBeat;       // 鼓点脉冲 0~1（自动衰减）
 uniform float uFlowSpeed;       // 水平流场速度（原 0.04）
 uniform float uNoiseAmp;        // 噪声扰动幅度（原 0.18）
 uniform float uSizeScale;       // 粒子尺寸整体缩放（原 1.0）
+uniform float uOrbitAmp;        // 星云轨道场摆幅（rad，默认 0 = 关闭）
+uniform float uOrbitTempo;      // 星云轨道场节奏（rad/s，默认 0 = 关闭）
 
 varying float vSeed;
 varying float vAlpha;
@@ -78,6 +80,19 @@ float snoise(vec3 v) {
 void main() {
   vec3 pos = position;
   float radial = length(pos.xy);  // 距中心距离（用于控制扰动范围）
+
+  // —— 星云轨道场：粒子沿椭圆带做差速摆动（星系密度波的呼吸）
+  //    在归一化圆空间旋转，再映射回椭圆 —— 水平剪影永不变形；
+  //    相位随半径偏移（rNorm*2.4）产生"旋臂扫过"的层次感。
+  //    默认 amp=0 → ang=0 → cos=1/sin=0 → 完全等于原 position（v1.0 零回归）。
+  vec2 nz = vec2(position.x / 3.2, position.y / 0.9);
+  float rNorm = length(nz);
+  float orbAng = uOrbitAmp * (0.55 + 0.85 * rNorm)
+               * sin(uTime * uOrbitTempo + rNorm * 2.4);
+  float cA = cos(orbAng);
+  float sA = sin(orbAng);
+  vec2 nzRot = vec2(nz.x * cA - nz.y * sA, nz.x * sA + nz.y * cA);
+  pos.xy = nzRot * vec2(3.2, 0.9);
 
   // —— 动效：水平流场（粒子缓慢穿过视野，速度温和）
   //    低频让流场加速：让粒子随低频"涌出"

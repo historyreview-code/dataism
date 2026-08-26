@@ -20,6 +20,8 @@ export const DEFAULT_THEME = {
     noiseAmp: 0.18,   // 噪声扰动幅度
     sizeScale: 1.0,   // 粒子尺寸缩放
     mouseStrength: 1.5,
+    orbitAmp: 0.0,    // 星云轨道场摆幅（rad）——v1.0 锁定 = 关闭
+    orbitTempo: 0.0,  // 星云轨道场节奏（rad/s）
   },
 }
 
@@ -139,6 +141,8 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
         uFlowSpeed:     { value: initialTheme.behavior.flow },
         uNoiseAmp:      { value: initialTheme.behavior.noiseAmp },
         uSizeScale:     { value: initialTheme.behavior.sizeScale },
+        uOrbitAmp:      { value: initialTheme.behavior.orbitAmp },
+        uOrbitTempo:    { value: initialTheme.behavior.orbitTempo },
       },
     }
   }, [gl])
@@ -190,6 +194,8 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     u.uNoiseAmp.value      += (target.behavior.noiseAmp - u.uNoiseAmp.value) * k
     u.uSizeScale.value     += (target.behavior.sizeScale - u.uSizeScale.value) * k
     u.uMouseStrength.value += (target.behavior.mouseStrength - u.uMouseStrength.value) * k
+    u.uOrbitAmp.value      += (target.behavior.orbitAmp - u.uOrbitAmp.value) * k
+    u.uOrbitTempo.value    += (target.behavior.orbitTempo - u.uOrbitTempo.value) * k
 
     // mouse 平滑跟随
     const m = u.uMouse.value
