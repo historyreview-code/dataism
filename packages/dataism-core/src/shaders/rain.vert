@@ -6,6 +6,7 @@ attribute float aSpeed;
 
 uniform float uTime;
 uniform float uPixelRatio;
+uniform float uRainEnv;   // 分辨率环境系数（默认 1.0 = v1.0 原样）
 
 varying float vAlpha;
 
@@ -26,7 +27,7 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  gl_PointSize = (2.0 + aSeed * 3.0);
+  gl_PointSize = (2.0 + aSeed * 3.0) * uRainEnv;
 
   // 越接近底部越淡（让雨"消失"）—— 大部分 y 范围里保持高 alpha
   float lifeTop = smoothstep(-3.5, -3.0, y);     // 顶部快速淡入

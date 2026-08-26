@@ -25,7 +25,7 @@ function mulberry32(seed) {
  * theme 变化时雨色跟随章节 core 高光色平滑过渡；
  * 不传 theme 保持 v1.0 纯白（零回归）。
  */
-export default function ParticleRain({ theme }) {
+export default function ParticleRain({ theme, pointEnv }) {
   const matRef = useRef()
   const { gl } = useThree()
 
@@ -57,6 +57,7 @@ export default function ParticleRain({ theme }) {
         uTime:       { value: 0 },
         uPixelRatio: { value: Math.min(gl.getPixelRatio(), 1.5) },
         uRainColor:  { value: new THREE.Color(RAIN_WHITE) },
+        uRainEnv:    { value: 1.0 },   // 分辨率环境系数（pointEnv=true 时逐帧补偿）
       },
     }
   }, [gl])
@@ -69,6 +70,16 @@ export default function ParticleRain({ theme }) {
   useFrame((state, dt) => {
     if (!matRef.current) return
     matRef.current.uniforms.uTime.value = state.clock.elapsedTime
+
+    // 分辨率环境补偿（与 ParticleCloud 同公式，雨丝在大窗下也保持观感密度）
+    if (pointEnv) {
+      const envTarget =
+        Math.min(gl.getPixelRatio(), 2.0) *
+        Math.max(0.85, Math.min(state.size.height / 1050, 1.9))
+      const u = matRef.current.uniforms
+      u.uRainEnv.value += (envTarget - u.uRainEnv.value) * 0.08
+    }
+
     if (rainColorRef.current) {
       const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
       matRef.current.uniforms.uRainColor.value.lerp(rainColorRef.current, k)

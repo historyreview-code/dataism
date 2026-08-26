@@ -22,6 +22,7 @@ export const DEFAULT_THEME = {
     mouseStrength: 1.5,
     orbitAmp: 0.0,    // 星云轨道场摆幅（rad）——v1.0 锁定 = 关闭
     orbitTempo: 0.0,  // 星云轨道场节奏（rad/s）
+    coreLift: 0.0,    // 中央粒子尺寸增益——v1.0 锁定 = 关闭
   },
 }
 
@@ -56,7 +57,7 @@ function mulberry32(seed) {
  *   theme                  { palette:{inner,outer,core}, behavior:{flow,noiseAmp,sizeScale,mouseStrength} }
  *                          变化时颜色/行为在 ~12s 内平滑过渡（不重建几何体）
  */
-export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, theme }) {
+export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, theme, pointEnv }) {
   const matRef = useRef()
   const { gl } = useThree()
 
@@ -143,6 +144,8 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
         uSizeScale:     { value: initialTheme.behavior.sizeScale },
         uOrbitAmp:      { value: initialTheme.behavior.orbitAmp },
         uOrbitTempo:    { value: initialTheme.behavior.orbitTempo },
+        uCoreLift:      { value: initialTheme.behavior.coreLift },
+        uPointEnv:      { value: 1.0 },   // 分辨率环境系数（pointEnv=true 时逐帧补偿）
       },
     }
   }, [gl])
@@ -196,6 +199,16 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     u.uMouseStrength.value += (target.behavior.mouseStrength - u.uMouseStrength.value) * k
     u.uOrbitAmp.value      += (target.behavior.orbitAmp - u.uOrbitAmp.value) * k
     u.uOrbitTempo.value    += (target.behavior.orbitTempo - u.uOrbitTempo.value) * k
+    u.uCoreLift.value      += (target.behavior.coreLift - u.uCoreLift.value) * k
+
+    // —— 分辨率环境补偿：gl_PointSize 是绝对像素，大窗 / HiDPI 下粒子相对面积缩小、
+    //    云显稀薄（实测大窗中心亮度只有小窗 36%）。按 dpr × 视口高度比补偿。
+    if (pointEnv) {
+      const envTarget =
+        Math.min(gl.getPixelRatio(), 2.0) *
+        Math.max(0.85, Math.min(state.size.height / 1050, 1.9))
+      u.uPointEnv.value += (envTarget - u.uPointEnv.value) * 0.08
+    }
 
     // mouse 平滑跟随
     const m = u.uMouse.value

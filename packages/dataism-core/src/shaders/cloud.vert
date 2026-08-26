@@ -23,6 +23,8 @@ uniform float uNoiseAmp;        // 噪声扰动幅度（原 0.18）
 uniform float uSizeScale;       // 粒子尺寸整体缩放（原 1.0）
 uniform float uOrbitAmp;        // 星云轨道场摆幅（rad，默认 0 = 关闭）
 uniform float uOrbitTempo;      // 星云轨道场节奏（rad/s，默认 0 = 关闭）
+uniform float uPointEnv;        // 分辨率环境系数（dpr × 视口高度补偿，默认 1.0 = 不补偿）
+uniform float uCoreLift;        // 中央粒子尺寸增益（默认 0 = 关闭）
 
 varying float vSeed;
 varying float vAlpha;
@@ -147,8 +149,12 @@ void main() {
   // 粒子尺寸：中心区粒子**调小**，避免累加成光斑；外圈保留
   // r < 0.4 → 缩小到 60%；r > 0.6 → 100%（不要把中心挖空）
   float sizeMask = mix(0.6, 1.0, smoothstep(0.3, 0.6, radial));
-  float baseSize = mix(2.5, 6.0, aSize) * sizeMask * uSizeScale;
-  gl_PointSize = baseSize;
+  // —— 分辨率自适应：gl_PointSize 是绝对像素，大窗/HiDPI 下相对面积缩小导致云变稀薄；
+  //    uPointEnv 按 dpr×视口高度补偿（默认 1.0 = v1.0 原样），让观感密度跨窗口稳定
+  // —— 中央存在感：coreBoost 随归一化半径向内增强（默认 0 = 原样），放大的近景里核心不再"消失"
+  float coreBoost = 1.0 + uCoreLift * (1.0 - smoothstep(0.08, 0.78, rNorm));
+  float baseSize = mix(2.5, 6.0, aSize) * sizeMask * uSizeScale * uPointEnv;
+  gl_PointSize = baseSize * coreBoost;
 
   vSeed = aSeed;
   vAlpha = 1.0;
