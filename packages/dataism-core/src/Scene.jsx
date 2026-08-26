@@ -9,8 +9,8 @@ export default function Scene({ mouseRef, clickRef, audioLevelsRef, theme }) {
     <>
       <color attach="background" args={['#000000']} />
 
-      {/* 顶部雨 */}
-      <ParticleRain />
+      {/* 顶部雨（雨色跟随章节 core 高光色，缺省 = v1.0 纯白） */}
+      <ParticleRain theme={theme} />
 
       {/* 主粒子云（theme 控制配色与行为，缺省 = v1.0 原版） */}
       <ParticleCloud

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -6,6 +6,10 @@ import rainVert from './shaders/rain.vert?raw'
 import rainFrag from './shaders/rain.frag?raw'
 
 const COUNT = 4000
+// 与 ParticleCloud 同步的主题过渡速率
+const THEME_LERP_RATE = 0.25
+// v1.0 原版雨色 = 纯白（不传 theme 时保持零回归）
+const RAIN_WHITE = '#FFFFFF'
 
 function mulberry32(seed) {
   return function () {
@@ -16,9 +20,16 @@ function mulberry32(seed) {
   }
 }
 
-export default function ParticleRain() {
+/**
+ * ParticleRain —— 顶部坠落的细雨
+ * theme 变化时雨色跟随章节 core 高光色平滑过渡；
+ * 不传 theme 保持 v1.0 纯白（零回归）。
+ */
+export default function ParticleRain({ theme }) {
   const matRef = useRef()
   const { gl } = useThree()
+
+  const rainColorRef = useRef(null)
 
   const { geometry, uniforms } = useMemo(() => {
     const rand = mulberry32(42)
@@ -45,13 +56,23 @@ export default function ParticleRain() {
       uniforms: {
         uTime:       { value: 0 },
         uPixelRatio: { value: Math.min(gl.getPixelRatio(), 1.5) },
+        uRainColor:  { value: new THREE.Color(RAIN_WHITE) },
       },
     }
   }, [gl])
 
-  useFrame((state) => {
+  // theme 变化 → 预构建目标色，过渡在 useFrame 里做
+  useEffect(() => {
+    rainColorRef.current = new THREE.Color(theme?.palette?.core || RAIN_WHITE)
+  }, [theme])
+
+  useFrame((state, dt) => {
     if (!matRef.current) return
     matRef.current.uniforms.uTime.value = state.clock.elapsedTime
+    if (rainColorRef.current) {
+      const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
+      matRef.current.uniforms.uRainColor.value.lerp(rainColorRef.current, k)
+    }
   })
 
   return (
