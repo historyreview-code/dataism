@@ -1,0 +1,212 @@
+.credits-toggle {
+  position: fixed;
+  bottom: 22px;
+  left: 22px;
+  z-index: 50;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-style: italic;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.credits-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.credits-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: credits-fade-in 0.3s ease-out;
+}
+
+@keyframes credits-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.credits-modal {
+  position: relative;
+  max-width: 520px;
+  width: 86vw;
+  padding: 36px 40px;
+  background: rgba(10, 10, 12, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  animation: credits-rise 0.4s ease-out;
+}
+
+@keyframes credits-rise {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.credits-modal__title {
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.credits-modal__subtitle {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  text-transform: lowercase;
+  margin-bottom: 22px;
+}
+
+.credits-modal__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+}
+
+.credits-tab {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 16px 10px;
+  margin-bottom: -1px;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.credits-tab:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.credits-tab.is-active {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
+.credits-modal__section {
+  margin-bottom: 22px;
+}
+
+.credits-modal__section:last-child {
+  margin-bottom: 0;
+}
+
+.credits-modal__heading {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.credits-modal__section ul {
+  list-style: none;
+  padding: 0;
+}
+
+.credits-modal__section li {
+  font-size: 13px;
+  line-height: 1.9;
+  opacity: 0.85;
+}
+
+.credits-modal__section em {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.credits-modal__close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.credits-modal__close:hover {
+  color: #fff;
+}
+
+/* —— Soundscape buttons —— */
+.sound-presets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.sound-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.sound-preset:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sound-preset.is-active {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.sound-preset.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sound-preset__label {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.sound-preset__desc {
+  font-size: 11px;
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+}
+
+.sound-preset__soon {
+  font-style: italic;
+  opacity: 0.7;
+  margin-left: 4px;
+}

@@ -1,0 +1,27 @@
+// @studio/dataism-core
+// Public entry — apps import from '@studio/dataism-core'
+
+// Particle engine
+export { default as ParticleCloud } from './ParticleCloud.jsx'
+export { default as ParticleRain } from './ParticleRain.jsx'
+export { default as Scene } from './Scene.jsx'
+export { default as PointerCatcher } from './PointerCatcher.jsx'
+
+// Audio engine
+export { default as AudioController } from './AudioController.jsx'
+export { default as AudioOverlay } from './AudioOverlay.jsx'
+export { presets, presetOrder } from './audio/presets.js'
+
+// Overlays
+export { default as LoadingScreen } from './LoadingScreen.jsx'
+export { default as ErrorBoundary } from './ErrorBoundary.jsx'
+export { default as InteractionPulse } from './InteractionPulse.jsx'
+
+// Base styles (CSS — apps can import as side-effect)
+import './styles.css'
+import './loading.css'
+import './audio-overlay.css'
+import './interaction-pulse.css'
+
+// Shader URLs (apps can re-import if they want to wrap)
+// GLSL strings are imported via Vite ?raw in the source files already.

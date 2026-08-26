@@ -1,0 +1,65 @@
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 1.5s ease-out;
+  pointer-events: auto;
+}
+
+.loading-screen.fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-inner {
+  text-align: center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: #fff;
+}
+
+.loading-title {
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  margin-bottom: 32px;
+  opacity: 0.9;
+}
+
+.loading-bar {
+  width: 240px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 auto 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-bar-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.85),
+    transparent
+  );
+  width: 50%;
+  animation: loading-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes loading-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+.loading-hint {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  opacity: 0.4;
+  text-transform: lowercase;
+}

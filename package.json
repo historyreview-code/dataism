@@ -1,0 +1,18 @@
+{
+  "name": "dataism-studios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dataism Studios — interactive particle-art installations. Monorepo with @studio/dataism-core as the shared engine.",
+  "scripts": {
+    "dev:17": "pnpm --filter dataism-17 dev",
+    "build:17": "pnpm --filter dataism-17 build",
+    "preview:17": "pnpm --filter dataism-17 preview",
+    "dev": "pnpm dev:17",
+    "build": "pnpm build:17"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.30.3"
+}

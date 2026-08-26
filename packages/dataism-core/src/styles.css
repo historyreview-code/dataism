@@ -1,0 +1,130 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 400;
+  color: #fff;
+}
+
+.watermark {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.hint {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  text-transform: lowercase;
+}
+
+.labels {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+}
+
+.label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.label--left   { justify-self: start; }
+.label--center { justify-self: center; }
+.label--right  { justify-self: end; }
+
+.label__slash {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  transform: translateY(2px) rotate(45deg);
+  transform-origin: center;
+  flex-shrink: 0;
+}
+
+.label__text {
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
+}
+
+/* —— 移动端 fallback —— */
+.mobile-fallback {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 32px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.mobile-fallback__title {
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  margin-bottom: 14px;
+  opacity: 0.9;
+}
+
+.mobile-fallback__hint {
+  font-size: 12px;
+  opacity: 0.55;
+  max-width: 280px;
+  line-height: 1.6;
+}

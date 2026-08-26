@@ -1,0 +1,30 @@
+{
+  "name": "@studio/dataism-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared engine for Dataism Studios particle-art installations. React + R3F + GLSL shaders + Tone.js audio.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./presets": "./src/audio/presets.js",
+    "./shaders/*": "./src/shaders/*"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "echo \"no tests yet\""
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "three": ">=0.150",
+    "@react-three/fiber": ">=8",
+    "@react-three/drei": ">=9",
+    "tone": ">=14"
+  },
+  "dependencies": {
+    "simplex-noise": "^4.0.3"
+  }
+}
