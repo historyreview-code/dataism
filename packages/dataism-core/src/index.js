@@ -23,5 +23,8 @@ import './loading.css'
 import './audio-overlay.css'
 import './interaction-pulse.css'
 
+// Data-source hook for derivative apps (dronestorm / salmonrun)
+export { useDataSource } from './useDataSource.js'
+
 // Shader URLs (apps can re-import if they want to wrap)
 // GLSL strings are imported via Vite ?raw in the source files already.
