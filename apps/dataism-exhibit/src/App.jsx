@@ -239,7 +239,7 @@ export default function App() {
   return (
     <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''}`}>
       <Canvas
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
         camera={{ position: [0, 0, 8], fov: 55, near: 0.1, far: 100 }}
         onPointerMove={(e) => {
@@ -300,6 +300,7 @@ export default function App() {
         remainingMs={remainingMs}
         micLive={mic.status === 'live'}
         kiosk={kiosk}
+        pinned={Boolean(chapterParam)}
       />
 
       {mic.status === 'idle' && !kiosk && (
@@ -320,6 +321,18 @@ export default function App() {
 
       {!kiosk && (
         <div className="hint">移动 · 点击涟漪 · 现场声 · F 全屏 · N 下一辰</div>
+      )}
+
+      {!kiosk && (
+        <button
+          type="button"
+          className="info-toggle"
+          aria-label="关于这件作品"
+          title="关于 · 音景 · 十二时辰（快捷键 I）"
+          onClick={() => setCreditsOpen((v) => !v)}
+        >
+          i
+        </button>
       )}
 
       {!kiosk && (

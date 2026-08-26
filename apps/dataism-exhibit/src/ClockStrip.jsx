@@ -10,7 +10,7 @@ function fmtRemaining(ms) {
  * 当前时辰 + 真实钟点 + 章节进度 + 下一辰倒计时。
  * 作品本身即时钟：这一条是它唯一的"表盘"。
  */
-export default function ClockStrip({ chapter, nextChapter, progress, remainingMs, micLive, kiosk }) {
+export default function ClockStrip({ chapter, nextChapter, progress, remainingMs, micLive, kiosk, pinned }) {
   const now = new Date()
   const clock = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
@@ -29,7 +29,11 @@ export default function ClockStrip({ chapter, nextChapter, progress, remainingMs
         <div className="clock-strip__fill" style={{ width: `${progress * 100}%` }} />
       </div>
       <div className="clock-strip__next">
-        下一辰 {nextChapter.branch} · {nextChapter.name} — {fmtRemaining(remainingMs)}
+        {pinned ? (
+          <span className="clock-strip__pinned">演示 · 已钉在本辰（去掉地址栏 ?chapter= 参数即恢复自动轮换）</span>
+        ) : (
+          <>下一辰 {nextChapter.branch} · {nextChapter.name} — {fmtRemaining(remainingMs)}</>
+        )}
       </div>
     </div>
   )

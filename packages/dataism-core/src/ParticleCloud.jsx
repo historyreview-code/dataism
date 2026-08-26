@@ -205,11 +205,13 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     u.uDotGain.value       += (target.behavior.dotGain - u.uDotGain.value) * k
 
     // —— 分辨率环境补偿：gl_PointSize 是绝对像素，大窗 / HiDPI 下粒子相对面积缩小、
-    //    云显稀薄（实测大窗中心亮度只有小窗 36%）。按 dpr × 视口高度比补偿。
+    //    云显稀薄。目标：s_eff/H 跨窗口恒定（亮度比≈1）。
+    //    公式 v2：H 感知指数线性（^1.1 微增大屏辉光感），只保留防次像素下限。
+    //    （v1 的 max(.85,·) 下限会把小窗端抬高，造成大/小亮度比跌回 0.53）
     if (pointEnv) {
+      const hRatio = Math.pow(state.size.height / 1050, 1.10)
       const envTarget =
-        Math.min(gl.getPixelRatio(), 2.0) *
-        Math.max(0.85, Math.min(state.size.height / 1050, 1.9))
+        Math.min(gl.getPixelRatio(), 2.0) * Math.max(0.30, Math.min(hRatio, 3.0))
       u.uPointEnv.value += (envTarget - u.uPointEnv.value) * 0.08
     }
 

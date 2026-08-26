@@ -71,11 +71,11 @@ export default function ParticleRain({ theme, pointEnv }) {
     if (!matRef.current) return
     matRef.current.uniforms.uTime.value = state.clock.elapsedTime
 
-    // 分辨率环境补偿（与 ParticleCloud 同公式，雨丝在大窗下也保持观感密度）
+    // 分辨率环境补偿（与 ParticleCloud 同公式 v2：无小窗下限，防次像素除外）
     if (pointEnv) {
+      const hRatio = Math.pow(state.size.height / 1050, 1.10)
       const envTarget =
-        Math.min(gl.getPixelRatio(), 2.0) *
-        Math.max(0.85, Math.min(state.size.height / 1050, 1.9))
+        Math.min(gl.getPixelRatio(), 2.0) * Math.max(0.30, Math.min(hRatio, 3.0))
       const u = matRef.current.uniforms
       u.uRainEnv.value += (envTarget - u.uRainEnv.value) * 0.08
     }
