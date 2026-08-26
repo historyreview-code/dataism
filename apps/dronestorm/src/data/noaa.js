@@ -176,22 +176,6 @@ export function particlesFromWind(weatherData, particleCount = 50000) {
     grid,
   }
 }
-    velocities[i2 + 1] = pt.v
-    baseSpeeds[i]      = pt.rawSpeed
-    seeds[i]           = Math.random()
-    sizes[i]           = 0.4 + Math.pow(Math.random(), 4) * 2.5
-  }
-
-  return {
-    positions,
-    velocities,
-    baseSpeeds,
-    seeds,
-    sizes,
-    bounds,
-    grid,
-  }
-}
 
 /**
  * 评估当前风场是否构成"风暴"——返回 0~1 强度

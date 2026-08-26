@@ -1,0 +1,27 @@
+{
+  "name": "dataism-exhibit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "《时辰》Twelve Hours — Dataism 展品版：十二时辰章节轮换 + 现场声交互 + kiosk 陈列模式",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@studio/dataism-core": "workspace:*",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1",
+    "tone": "^15.1.22"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "vite": "^8.2.2"
+  }
+}

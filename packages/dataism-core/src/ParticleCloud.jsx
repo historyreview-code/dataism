@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createNoise3D } from 'simplex-noise'
@@ -7,6 +7,32 @@ import cloudVert from './shaders/cloud.vert?raw'
 import cloudFrag from './shaders/cloud.frag?raw'
 
 const COUNT = 50000
+
+// v1.0 原版主题（dataism-17 不传 theme 时使用，保证零回归）
+export const DEFAULT_THEME = {
+  palette: {
+    inner: '#8CC4FF', // 冷蓝
+    outer: '#FFA94D', // 暖橙
+    core: '#F2FAFF',  // 内核高光
+  },
+  behavior: {
+    flow: 0.04,       // 水平流场速度
+    noiseAmp: 0.18,   // 噪声扰动幅度
+    sizeScale: 1.0,   // 粒子尺寸缩放
+    mouseStrength: 1.5,
+  },
+}
+
+// 主题过渡：时间常数 4s（95% 到位 ≈ 12s，够两小时一换的章节从容呼吸）
+const THEME_LERP_RATE = 0.25
+
+function normalizeTheme(theme) {
+  const t = theme || {}
+  return {
+    palette: { ...DEFAULT_THEME.palette, ...t.palette },
+    behavior: { ...DEFAULT_THEME.behavior, ...t.behavior },
+  }
+}
 
 // Mulberry32：确定性 PRNG，让粒子分布每次刷新都一样
 function mulberry32(seed) {
@@ -18,9 +44,22 @@ function mulberry32(seed) {
   }
 }
 
-export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef }) {
+/**
+ * ParticleCloud —— 主题化粒子云引擎
+ *
+ * props:
+ *   mouseRef / clickRef    交互 ref（同 v1.0）
+ *   audioLevelsRef         单个 ref 或 ref 数组（多路音频取逐频段最大值：
+ *                          Tone 输出频谱 + 麦克风现场声可以同时驱动粒子）
+ *   theme                  { palette:{inner,outer,core}, behavior:{flow,noiseAmp,sizeScale,mouseStrength} }
+ *                          变化时颜色/行为在 ~12s 内平滑过渡（不重建几何体）
+ */
+export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, theme }) {
   const matRef = useRef()
   const { gl } = useThree()
+
+  const initialTheme = useMemo(() => normalizeTheme(theme), []) // 只用于首帧，theme 变化走过渡
+  const themeTargetRef = useRef(initialTheme)
 
   const { geometry, uniforms } = useMemo(() => {
     const rand = mulberry32(20260826)
@@ -83,7 +122,7 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef }) {
       uniforms: {
         uTime:          { value: 0 },
         uMouse:         { value: new THREE.Vector2(99, 99) },
-        uMouseStrength: { value: 1.5 },
+        uMouseStrength: { value: initialTheme.behavior.mouseStrength },
         uPixelRatio:    { value: Math.min(gl.getPixelRatio(), 1.5) },
         uSizeBase:      { value: 8.0 },
         uClickPos:      { value: new THREE.Vector2(99, 99) },
@@ -93,42 +132,89 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef }) {
         uAudioMid:      { value: 0 },
         uAudioHigh:     { value: 0 },
         uAudioBeat:     { value: 0 },
+        // —— 主题 uniforms（默认 = v1.0 原版）——
+        uColorInner:    { value: new THREE.Color(initialTheme.palette.inner) },
+        uColorOuter:    { value: new THREE.Color(initialTheme.palette.outer) },
+        uColorCore:     { value: new THREE.Color(initialTheme.palette.core) },
+        uFlowSpeed:     { value: initialTheme.behavior.flow },
+        uNoiseAmp:      { value: initialTheme.behavior.noiseAmp },
+        uSizeScale:     { value: initialTheme.behavior.sizeScale },
       },
     }
   }, [gl])
 
+  // theme 变化 → 只更新目标（颜色预构建，避免逐帧分配），过渡在 useFrame 里做
+  useEffect(() => {
+    const t = normalizeTheme(theme)
+    themeTargetRef.current = {
+      palette: {
+        inner: new THREE.Color(t.palette.inner),
+        outer: new THREE.Color(t.palette.outer),
+        core:  new THREE.Color(t.palette.core),
+      },
+      behavior: t.behavior,
+    }
+  }, [theme])
+
+  // 把多路音频 ref 合并成逐频段最大值（任何一路有声都驱动粒子）
+  const readMergedLevels = () => {
+    if (!audioLevelsRef) return null
+    const refs = Array.isArray(audioLevelsRef) ? audioLevelsRef : [audioLevelsRef]
+    let low = 0, mid = 0, high = 0, beat = 0
+    let any = false
+    for (const r of refs) {
+      const v = r?.current
+      if (!v) continue
+      any = true
+      low  = Math.max(low,  v.low  || 0)
+      mid  = Math.max(mid,  v.mid  || 0)
+      high = Math.max(high, v.high || 0)
+      beat = Math.max(beat, v.beat || 0)
+    }
+    return any ? { low, mid, high, beat } : null
+  }
+
   useFrame((state, dt) => {
     if (!matRef.current) return
+    const u = matRef.current.uniforms
     const t = state.clock.elapsedTime
-    matRef.current.uniforms.uTime.value = t
+    u.uTime.value = t
+
+    // —— 主题过渡（颜色 lerp + 标量 lerp，指数趋近）——
+    const target = themeTargetRef.current
+    const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
+    u.uColorInner.value.lerp(target.palette.inner, k)
+    u.uColorOuter.value.lerp(target.palette.outer, k)
+    u.uColorCore.value.lerp(target.palette.core, k)
+    u.uFlowSpeed.value     += (target.behavior.flow - u.uFlowSpeed.value) * k
+    u.uNoiseAmp.value      += (target.behavior.noiseAmp - u.uNoiseAmp.value) * k
+    u.uSizeScale.value     += (target.behavior.sizeScale - u.uSizeScale.value) * k
+    u.uMouseStrength.value += (target.behavior.mouseStrength - u.uMouseStrength.value) * k
 
     // mouse 平滑跟随
-    const u = matRef.current.uniforms.uMouse.value
-    u.x += (mouseRef.current.x - u.x) * 0.12
-    u.y += (mouseRef.current.y - u.y) * 0.12
+    const m = u.uMouse.value
+    m.x += (mouseRef.current.x - m.x) * 0.12
+    m.y += (mouseRef.current.y - m.y) * 0.12
 
     // click 冲击波：处理 pending 标记 + 2 秒线性衰减
     if (clickRef && clickRef.current && clickRef.current.pending) {
       // 把 clickPos 同步给 shader，记录点击瞬间的时间
-      matRef.current.uniforms.uClickPos.value.set(
-        clickRef.current.x,
-        clickRef.current.y,
-      )
-      matRef.current.uniforms.uClickTime.value = t
+      u.uClickPos.value.set(clickRef.current.x, clickRef.current.y)
+      u.uClickTime.value = t
       clickRef.current.pending = false   // 清掉标记
     }
     // 强度按时间自动衰减
-    const elapsed = t - matRef.current.uniforms.uClickTime.value
-    matRef.current.uniforms.uClickStrength.value = Math.max(0, 1.0 - elapsed / 2.0)
+    const elapsed = t - u.uClickTime.value
+    u.uClickStrength.value = Math.max(0, 1.0 - elapsed / 2.0)
 
     // audio 平滑跟随（lerp 让电平更柔，避免频谱"锯齿"）
-    if (audioLevelsRef && audioLevelsRef.current) {
+    const merged = readMergedLevels()
+    if (merged) {
       const lerp = 0.25
-      const u = matRef.current.uniforms
-      u.uAudioLow.value  += (audioLevelsRef.current.low  - u.uAudioLow.value)  * lerp
-      u.uAudioMid.value  += (audioLevelsRef.current.mid  - u.uAudioMid.value)  * lerp
-      u.uAudioHigh.value += (audioLevelsRef.current.high - u.uAudioHigh.value) * lerp
-      u.uAudioBeat.value += (audioLevelsRef.current.beat - u.uAudioBeat.value) * 0.5
+      u.uAudioLow.value  += (merged.low  - u.uAudioLow.value)  * lerp
+      u.uAudioMid.value  += (merged.mid  - u.uAudioMid.value)  * lerp
+      u.uAudioHigh.value += (merged.high - u.uAudioHigh.value) * lerp
+      u.uAudioBeat.value += (merged.beat - u.uAudioBeat.value) * 0.5
     }
   })
 

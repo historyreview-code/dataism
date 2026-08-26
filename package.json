@@ -7,8 +7,14 @@
     "dev:17": "pnpm --filter dataism-17 dev",
     "build:17": "pnpm --filter dataism-17 build",
     "preview:17": "pnpm --filter dataism-17 preview",
-    "dev": "pnpm dev:17",
-    "build": "pnpm build:17"
+    "dev:exhibit": "pnpm --filter dataism-exhibit dev",
+    "build:exhibit": "pnpm --filter dataism-exhibit build",
+    "preview:exhibit": "pnpm --filter dataism-exhibit preview",
+    "dev:storm": "pnpm --filter dronestorm dev",
+    "build:storm": "pnpm --filter dronestorm build",
+    "build:all": "pnpm build:17 && pnpm build:exhibit && pnpm build:storm",
+    "dev": "pnpm dev:exhibit",
+    "build": "pnpm build:exhibit"
   },
   "engines": {
     "node": ">=18",

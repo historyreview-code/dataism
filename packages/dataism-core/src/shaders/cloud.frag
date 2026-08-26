@@ -2,6 +2,10 @@ precision highp float;
 
 uniform float uTime;
 uniform float uAudioBeat;
+// —— 主题配色（由章节引擎注入；默认值 = v1.0 原版赛博蓝橙）——
+uniform vec3 uColorInner;   // 内圈色
+uniform vec3 uColorOuter;   // 外圈色
+uniform vec3 uColorCore;    // 中央高光色
 varying float vSeed;
 varying float vAlpha;
 varying float vRadius;
@@ -20,14 +24,14 @@ void main() {
   // —— 径向赛博配色：内圈冷蓝 → 外圈暖橙
   // vRadius 是椭圆归一化距离：中心 0，椭圆边界 ~1.0
   // 由于中央 r<0.3 区域粒子被剔到外圈，gradient 起点移到 0.3 让真正有粒子的区段才有渐变
-  vec3 innerColor = vec3(0.55, 0.77, 1.00);   // #8CC4FF 冷蓝
-  vec3 outerColor = vec3(1.00, 0.66, 0.30);   // #FFA94D 暖橙
+  vec3 innerColor = uColorInner;
+  vec3 outerColor = uColorOuter;
   float gradientT = smoothstep(0.3, 0.95, vRadius);
   vec3 baseColor = mix(innerColor, outerColor, gradientT);
 
   // 中央最内核（r<0.2）少量粒子保留蓝→白色高光（10% mix）
   float coreHighlight = smoothstep(0.0, 0.2, 0.2 - vRadius);
-  baseColor = mix(baseColor, vec3(0.95, 0.98, 1.0), coreHighlight * 0.5);
+  baseColor = mix(baseColor, uColorCore, coreHighlight * 0.5);
 
   // —— 鼓点闪白（audio beat → 短暂提亮粒子）
   float beatFlash = uAudioBeat * 0.4;

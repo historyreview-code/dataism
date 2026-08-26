@@ -1,0 +1,357 @@
+/* ─────────────────────────────────────────────
+   《时辰》Twelve Hours — exhibit 专属样式
+   基础类（.app/.overlay/.hint/.mobile-fallback 等）由 core styles.css 提供
+   ───────────────────────────────────────────── */
+
+.exhibit-app.is-kiosk {
+  cursor: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* —— 右上角作品标识 —— */
+.exhibit-brand {
+  position: fixed;
+  top: 28px;
+  right: 32px;
+  text-align: right;
+  pointer-events: none;
+  z-index: 5;
+}
+.exhibit-brand__cn {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 22px;
+  letter-spacing: 0.5em;
+  margin-right: -0.5em; /* 抵消末字间距，视觉右对齐 */
+  color: rgba(255, 255, 255, 0.85);
+}
+.exhibit-brand__en {
+  margin-top: 6px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* —— 换章标题卡 —— */
+.chapter-card {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 1.6s ease, transform 1.6s ease;
+}
+.chapter-card.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.chapter-card__hours {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 18px;
+}
+.chapter-card__branch {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: clamp(96px, 14vh, 168px);
+  line-height: 1;
+  color: var(--ch, #8cc4ff);
+  text-shadow:
+    0 0 42px color-mix(in srgb, var(--ch, #8cc4ff) 55%, transparent),
+    0 2px 24px rgba(0, 0, 0, 0.8);
+}
+.chapter-card__name {
+  margin-top: 26px;
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 24px;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.92);
+}
+.chapter-card__en {
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.45);
+}
+.chapter-card__poem {
+  margin-top: 22px;
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.66);
+}
+.chapter-card__data {
+  margin-top: 14px;
+  max-width: 520px;
+  padding: 0 24px;
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.4);
+}
+.chapter-card__sound {
+  margin-top: 26px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* —— 左下角时辰时钟条 —— */
+.clock-strip {
+  position: fixed;
+  left: 32px;
+  bottom: 30px;
+  z-index: 5;
+  pointer-events: none;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+.clock-strip__row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.clock-strip__branch {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--ch, #8cc4ff);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--ch, #8cc4ff) 45%, transparent);
+}
+.clock-strip__name {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.8);
+}
+.clock-strip__clock {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.45);
+}
+.clock-strip__mic {
+  font-size: 10px;
+  color: var(--ch, #8cc4ff);
+  animation: mic-blink 2.4s ease-in-out infinite;
+}
+@keyframes mic-blink {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.clock-strip__bar {
+  margin-top: 10px;
+  width: 148px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.clock-strip__fill {
+  height: 100%;
+  background: var(--ch, #8cc4ff);
+  box-shadow: 0 0 8px var(--ch, #8cc4ff);
+  transition: width 0.8s linear;
+}
+.clock-strip__next {
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.35);
+}
+.clock-strip--kiosk {
+  left: 40px;
+  bottom: 38px;
+}
+
+/* —— 现场声 chip —— */
+.mic-chip {
+  position: fixed;
+  right: 32px;
+  bottom: 30px;
+  z-index: 5;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s;
+}
+.mic-chip:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.95);
+}
+.mic-chip--live {
+  cursor: default;
+  pointer-events: none;
+  border-color: rgba(140, 196, 255, 0.4);
+  color: rgba(160, 210, 255, 0.9);
+}
+
+/* —— 关于面板 —— */
+.credits-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+  animation: credits-fade 0.35s ease;
+}
+@keyframes credits-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.credits-modal {
+  position: relative;
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding: 40px 44px 36px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(8, 10, 16, 0.92);
+}
+.credits-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+}
+.credits-modal__close:hover {
+  color: #fff;
+}
+.credits-modal__title {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 26px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.94);
+}
+.credits-modal__subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.4);
+}
+.credits-modal__section {
+  margin-top: 30px;
+}
+.credits-modal__heading {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  margin-bottom: 14px;
+}
+.credits-modal__para {
+  font-size: 14px;
+  line-height: 2;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 12px;
+}
+.credits-modal__para--dim {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+}
+.credits-modal__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 2;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* —— 十二时辰总览 —— */
+.chapter-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 18px;
+}
+.chapter-list__item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  transition: background 0.25s;
+}
+.chapter-list__item.is-current {
+  background: rgba(255, 255, 255, 0.07);
+}
+.chapter-list__branch {
+  font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  font-size: 18px;
+  color: var(--ch, #8cc4ff);
+}
+.chapter-list__item.is-current .chapter-list__branch {
+  text-shadow: 0 0 12px var(--ch, #8cc4ff);
+}
+.chapter-list__name {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.65);
+  flex: 1;
+}
+.chapter-list__time {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+/* —— 音景选择 —— */
+.sound-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.sound-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.sound-preset:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.sound-preset.is-active {
+  border-color: rgba(140, 196, 255, 0.65);
+  background: rgba(140, 196, 255, 0.08);
+}
+.sound-preset__label {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sound-preset.is-active .sound-preset__label {
+  color: #bfe0ff;
+}
+.sound-preset__desc {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.38);
+}

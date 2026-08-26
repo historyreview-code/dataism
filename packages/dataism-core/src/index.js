@@ -26,5 +26,12 @@ import './interaction-pulse.css'
 // Data-source hook for derivative apps (dronestorm / salmonrun)
 export { useDataSource } from './useDataSource.js'
 
+// Chapter engine（十二时辰章节轮换 —— 展品核心）
+export { CHAPTERS, CHAPTER_MS, chapterClockAt, chapterByBranch, chapterById } from './chapters.js'
+export { useChapter } from './useChapter.js'
+
+// Live-sound input（现场声音 → 粒子驱动，只分析不外放）
+export { useMicInput } from './useMicInput.js'
+
 // Shader URLs (apps can re-import if they want to wrap)
 // GLSL strings are imported via Vite ?raw in the source files already.

@@ -17,6 +17,11 @@ uniform float uAudioMid;        // 频谱中频能量 0~1
 uniform float uAudioHigh;       // 频谱高频能量 0~1
 uniform float uAudioBeat;       // 鼓点脉冲 0~1（自动衰减）
 
+// —— 主题行为参数（由章节引擎注入；默认值 = v1.0 原版行为）——
+uniform float uFlowSpeed;       // 水平流场速度（原 0.04）
+uniform float uNoiseAmp;        // 噪声扰动幅度（原 0.18）
+uniform float uSizeScale;       // 粒子尺寸整体缩放（原 1.0）
+
 varying float vSeed;
 varying float vAlpha;
 varying float vRadius;
@@ -76,7 +81,7 @@ void main() {
 
   // —— 动效：水平流场（粒子缓慢穿过视野，速度温和）
   //    低频让流场加速：让粒子随低频"涌出"
-  float flowSpeed = 0.04 * (1.0 + uAudioLow * 1.5);
+  float flowSpeed = uFlowSpeed * (1.0 + uAudioLow * 1.5);
   float xRange = 5.0;
   pos.x = mod(pos.x + uTime * flowSpeed + xRange * 0.5, xRange) - xRange * 0.5;
 
@@ -87,9 +92,9 @@ void main() {
   float n1 = snoise(vec3(pos.xy * 0.5, t + aSeed * 10.0));
   float n2 = snoise(vec3(pos.xy * 0.25 + 5.0, t * 0.5 + aSeed * 3.0));
   float audioScale = 1.0 + uAudioMid * 2.0;
-  pos.x += n1 * 0.18 * outerMask * audioScale;
-  pos.y += n2 * 0.18 * outerMask * audioScale;
-  pos.z += n1 * n2 * 0.1  * outerMask * audioScale;
+  pos.x += n1 * uNoiseAmp * outerMask * audioScale;
+  pos.y += n2 * uNoiseAmp * outerMask * audioScale;
+  pos.z += n1 * n2 * (uNoiseAmp * 0.55) * outerMask * audioScale;
 
   // —— 动效：高频抖动（让粒子随高频"沙沙"振动）
   float jitter = uAudioHigh * 0.12;
@@ -127,7 +132,7 @@ void main() {
   // 粒子尺寸：中心区粒子**调小**，避免累加成光斑；外圈保留
   // r < 0.4 → 缩小到 60%；r > 0.6 → 100%（不要把中心挖空）
   float sizeMask = mix(0.6, 1.0, smoothstep(0.3, 0.6, radial));
-  float baseSize = mix(2.5, 6.0, aSize) * sizeMask;
+  float baseSize = mix(2.5, 6.0, aSize) * sizeMask * uSizeScale;
   gl_PointSize = baseSize;
 
   vSeed = aSeed;
