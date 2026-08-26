@@ -23,6 +23,7 @@ export const DEFAULT_THEME = {
     orbitAmp: 0.0,    // 星云轨道场摆幅（rad）——v1.0 锁定 = 关闭
     orbitTempo: 0.0,  // 星云轨道场节奏（rad/s）
     coreLift: 0.0,    // 中央粒子尺寸增益——v1.0 锁定 = 关闭
+    dotGain: 1.0,     // 亮核增益（fragment 衰减指数 2.0/gain）——v1.0 锁定 = 1.0
   },
 }
 
@@ -145,6 +146,7 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
         uOrbitAmp:      { value: initialTheme.behavior.orbitAmp },
         uOrbitTempo:    { value: initialTheme.behavior.orbitTempo },
         uCoreLift:      { value: initialTheme.behavior.coreLift },
+        uDotGain:       { value: initialTheme.behavior.dotGain },
         uPointEnv:      { value: 1.0 },   // 分辨率环境系数（pointEnv=true 时逐帧补偿）
       },
     }
@@ -200,6 +202,7 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     u.uOrbitAmp.value      += (target.behavior.orbitAmp - u.uOrbitAmp.value) * k
     u.uOrbitTempo.value    += (target.behavior.orbitTempo - u.uOrbitTempo.value) * k
     u.uCoreLift.value      += (target.behavior.coreLift - u.uCoreLift.value) * k
+    u.uDotGain.value       += (target.behavior.dotGain - u.uDotGain.value) * k
 
     // —— 分辨率环境补偿：gl_PointSize 是绝对像素，大窗 / HiDPI 下粒子相对面积缩小、
     //    云显稀薄（实测大窗中心亮度只有小窗 36%）。按 dpr × 视口高度比补偿。

@@ -6,6 +6,8 @@ uniform float uAudioBeat;
 uniform vec3 uColorInner;   // 内圈色
 uniform vec3 uColorOuter;   // 外圈色
 uniform vec3 uColorCore;    // 中央高光色
+uniform float uDotGain;     // 亮核增益：衰减指数 2.0/gain（默认 1.0 = v1.0 原样；
+                            //   夜章 ~1.4 抬起粒子盘中间调，暖色才能越过人眼夜视色觉阈值）
 varying float vSeed;
 varying float vAlpha;
 varying float vRadius;
@@ -15,8 +17,8 @@ void main() {
   float r = length(uv);
   if (r > 0.5) discard;
 
-  // 中心非常亮、边缘立即消失
-  float intensity = pow(1.0 - smoothstep(0.0, 0.5, r), 2.0);
+  // 中心非常亮、边缘立即消失（uDotGain>1 时中间调更饱满）
+  float intensity = pow(1.0 - smoothstep(0.0, 0.5, r), 2.0 / max(uDotGain, 0.6));
 
   // 每粒子独立闪烁
   float flicker = 0.85 + 0.15 * sin(uTime * 2.0 + vSeed * 31.4);
