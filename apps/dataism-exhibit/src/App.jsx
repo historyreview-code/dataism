@@ -9,6 +9,7 @@ import {
   InteractionPulse,
   useChapter,
   useMicInput,
+  useCursorIdle,
   chapterByBranch,
   presets,
 } from '@studio/dataism-core'
@@ -49,6 +50,8 @@ export default function App() {
   const lastInputRef = useRef(performance.now())
 
   const mic = useMicInput()
+  // 光标闲置隐匿：静止 3s 隐去光标符号，粒子按其最后位置继续旋涡；一动即唤醒
+  const cursorIdle = useCursorIdle(3000)
   // 双通道音频：Tone 合成音景 + 麦克风现场声，逐频段取最大值驱动粒子
   const audioLevelsRefs = useMemo(() => [toneLevelsRef, mic.levelsRef], [])
 
@@ -237,7 +240,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''}`}>
+    <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''} ${cursorIdle ? 'cursor-ghosted' : ''}`}>
       <Canvas
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}

@@ -33,5 +33,8 @@ export { useChapter } from './useChapter.js'
 // Live-sound input（现场声音 → 粒子驱动，只分析不外放）
 export { useMicInput } from './useMicInput.js'
 
+// Cursor idle（光标闲置隐匿 —— 隐去后算法仍在原位继续作用）
+export { useCursorIdle } from './useCursorIdle.js'
+
 // Shader URLs (apps can re-import if they want to wrap)
 // GLSL strings are imported via Vite ?raw in the source files already.

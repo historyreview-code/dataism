@@ -198,6 +198,13 @@
   color: #fff;
 }
 
+/* —— 光标闲置隐匿（静止 3s）：整页隐去光标符号，粒子按其最后位置继续作用。
+      恢复移动瞬间由 hook 移除本类。!important 压过按钮的 pointer 光标。—— */
+.app.cursor-ghosted,
+.app.cursor-ghosted * {
+  cursor: none !important;
+}
+
 /* —— 现场声 chip —— */
 .mic-chip {
   position: fixed;
