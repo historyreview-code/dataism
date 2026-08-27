@@ -240,7 +240,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''} ${cursorIdle ? 'cursor-ghosted' : ''}`}>
+    <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''} ${cursorIdle && !creditsOpen ? 'cursor-ghosted' : ''}`}>
       <Canvas
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
