@@ -155,12 +155,15 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
   // theme 变化 → 只更新目标（颜色预构建，避免逐帧分配），过渡在 useFrame 里做
   useEffect(() => {
     const t = normalizeTheme(theme)
+    const probe = (c) => (isFinite(c.r) && isFinite(c.g) && isFinite(c.b)) ? 'ok' : 'NaN'
+    const ti = new THREE.Color(t.palette.inner)
+    const to = new THREE.Color(t.palette.outer)
+    const tc = new THREE.Color(t.palette.core)
+    if (window.__shichenRaf !== undefined) {
+      window.__shichenTarget = { i: probe(ti), o: probe(to), c: probe(tc), src: String(t.palette.inner) }
+    }
     themeTargetRef.current = {
-      palette: {
-        inner: new THREE.Color(t.palette.inner),
-        outer: new THREE.Color(t.palette.outer),
-        core:  new THREE.Color(t.palette.core),
-      },
+      palette: { inner: ti, outer: to, core: tc },
       behavior: t.behavior,
     }
   }, [theme])
@@ -184,25 +187,48 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
   }
 
   useFrame((state, dt) => {
+    if (window.__shichenRaf !== undefined) {
+      window.__shichenDraw = (window.__shichenDraw || 0) + 1
+      if (window.__shichenDraw % 90 === 0) {
+        const u = matRef.current ? matRef.current.uniforms : null
+        window.__shichenUni = u ? {
+          t: +u.uTime.value.toFixed(2), env: +u.uPointEnv.value.toFixed(3),
+          orb: +u.uOrbitAmp.value.toFixed(3), dot: +u.uDotGain.value.toFixed(2),
+          lose: u.uColorInner.value.getHexString(),
+        } : 'nomat'
+      }
+    }
     if (!matRef.current) return
     const u = matRef.current.uniforms
     const t = state.clock.elapsedTime
     u.uTime.value = t
 
     // —— 主题过渡（颜色 lerp + 标量 lerp，指数趋近）——
+    // NaN 免疫护栏：任何一步出现非有限值（病态 dt / 目标异常），立即从目标恢复。
+    // 这同时是展厅级健壮性加固：uniform 永不允许毒化成黑屏。
     const target = themeTargetRef.current
     const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
-    u.uColorInner.value.lerp(target.palette.inner, k)
-    u.uColorOuter.value.lerp(target.palette.outer, k)
-    u.uColorCore.value.lerp(target.palette.core, k)
-    u.uFlowSpeed.value     += (target.behavior.flow - u.uFlowSpeed.value) * k
-    u.uNoiseAmp.value      += (target.behavior.noiseAmp - u.uNoiseAmp.value) * k
-    u.uSizeScale.value     += (target.behavior.sizeScale - u.uSizeScale.value) * k
-    u.uMouseStrength.value += (target.behavior.mouseStrength - u.uMouseStrength.value) * k
-    u.uOrbitAmp.value      += (target.behavior.orbitAmp - u.uOrbitAmp.value) * k
-    u.uOrbitTempo.value    += (target.behavior.orbitTempo - u.uOrbitTempo.value) * k
-    u.uCoreLift.value      += (target.behavior.coreLift - u.uCoreLift.value) * k
-    u.uDotGain.value       += (target.behavior.dotGain - u.uDotGain.value) * k
+    const safeK = isFinite(k) ? k : 0
+    const safeColor = (c, tgt) => {
+      if (!(isFinite(c.r) && isFinite(c.g) && isFinite(c.b))) { c.copy(tgt); return }
+      c.lerp(tgt, safeK)
+      if (!(isFinite(c.r) && isFinite(c.g) && isFinite(c.b))) c.copy(tgt)
+    }
+    safeColor(u.uColorInner.value, target.palette.inner)
+    safeColor(u.uColorOuter.value, target.palette.outer)
+    safeColor(u.uColorCore.value, target.palette.core)
+    const safeNum = (cur, tgt) => {
+      const v = cur + (tgt - cur) * safeK
+      return isFinite(v) ? v : tgt
+    }
+    u.uFlowSpeed.value     = safeNum(u.uFlowSpeed.value, target.behavior.flow)
+    u.uNoiseAmp.value      = safeNum(u.uNoiseAmp.value, target.behavior.noiseAmp)
+    u.uSizeScale.value     = safeNum(u.uSizeScale.value, target.behavior.sizeScale)
+    u.uMouseStrength.value = safeNum(u.uMouseStrength.value, target.behavior.mouseStrength)
+    u.uOrbitAmp.value      = safeNum(u.uOrbitAmp.value, target.behavior.orbitAmp)
+    u.uOrbitTempo.value    = safeNum(u.uOrbitTempo.value, target.behavior.orbitTempo)
+    u.uCoreLift.value      = safeNum(u.uCoreLift.value, target.behavior.coreLift)
+    u.uDotGain.value       = safeNum(u.uDotGain.value, target.behavior.dotGain)
 
     // —— 分辨率环境补偿：gl_PointSize 是绝对像素，大窗 / HiDPI 下粒子相对面积缩小、
     //    云显稀薄。目标：s_eff/H 跨窗口恒定（亮度比≈1）。

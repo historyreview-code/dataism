@@ -116,6 +116,50 @@ export default function App() {
     }
   }, [])
 
+  // —— 素材采集通道（?export=1 时启用）：页面自报 canvas 像素到 dev server，
+  //    全程不经过截图/合成读回管线。Canvas 需 preserveDrawingBuffer（已开启）。
+  useEffect(() => {
+    if (!params.get('export')) return
+    window.__shichenRaf = 0
+    const tick = () => { window.__shichenRaf++; requestAnimationFrame(tick) }
+    requestAnimationFrame(tick)
+    const id = setInterval(() => {
+      const c = document.querySelector('canvas')
+      if (!c) return
+      const gl = c.getContext('webgl2') || c.getContext('webgl')
+      let meta = {
+        raf: window.__shichenRaf,
+        lost: gl ? gl.isContextLost() : 'nogl',
+        cw: c.width, ch: c.height,
+        draw: window.__shichenDraw || 0,
+        uni: window.__shichenUni || '',
+        tgt: window.__shichenTarget || '',
+        loading: document.body.innerHTML.includes('loading'),
+        domlen: document.body.innerHTML.length,
+      }
+      try {
+        if (gl && !gl.isContextLost()) {
+          const px = new Uint8Array(4)
+          const cx = Math.floor(gl.drawingBufferWidth / 2)
+          const cy = Math.floor(gl.drawingBufferHeight / 2)
+          gl.readPixels(cx, cy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+          meta.px = Array.from(px)
+          meta.dw = gl.drawingBufferWidth
+          meta.dh = gl.drawingBufferHeight
+          meta.gerr = gl.getError()
+        }
+        const data = c.toDataURL('image/png')
+        fetch('/__frame_sink', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: Date.now(), data, meta: JSON.stringify(meta) }),
+        })
+        window.__shichenLastMeta = meta
+      } catch (e) { window.__shichenLastMeta = { err: String(e) } }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [])
+
   // —— 键盘：F 全屏 / N 下一章（演示）/ I 关于 ——
   const [creditsOpen, setCreditsOpen] = useState(false)
   useEffect(() => {
