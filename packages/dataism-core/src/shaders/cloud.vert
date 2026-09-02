@@ -98,7 +98,7 @@ void main() {
 
   // —— 动效：水平流场（粒子缓慢穿过视野，速度温和）
   //    低频让流场加速：让粒子随低频"涌出"
-  float flowSpeed = uFlowSpeed * (1.0 + uAudioLow * 1.5);
+  float flowSpeed = uFlowSpeed * (1.0 + uAudioLow * 0.7);
   float xRange = 5.0;
   pos.x = mod(pos.x + uTime * flowSpeed + xRange * 0.5, xRange) - xRange * 0.5;
 
@@ -108,21 +108,21 @@ void main() {
   float t = uTime * 0.15;
   float n1 = snoise(vec3(pos.xy * 0.5, t + aSeed * 10.0));
   float n2 = snoise(vec3(pos.xy * 0.25 + 5.0, t * 0.5 + aSeed * 3.0));
-  float audioScale = 1.0 + uAudioMid * 2.0;
+  float audioScale = 1.0 + uAudioMid * 0.9;
   pos.x += n1 * uNoiseAmp * outerMask * audioScale;
   pos.y += n2 * uNoiseAmp * outerMask * audioScale;
   pos.z += n1 * n2 * (uNoiseAmp * 0.55) * outerMask * audioScale;
 
   // —— 动效：高频抖动（让粒子随高频"沙沙"振动）
-  float jitter = uAudioHigh * 0.12;
+  float jitter = uAudioHigh * 0.06;
   pos.xy += vec2(
     sin(uTime * 50.0 + aSeed * 100.0),
     cos(uTime * 47.0 + aSeed * 100.0)
   ) * jitter;
 
-  // —— 动效：鼓点迸发（径向扩张）
-  pos.xy += normalize(pos.xy + 1e-5) * uAudioBeat * 0.3;
-  pos.z  += uAudioBeat * 0.15;
+  // —— 动效：鼓点迸发（径向扩张，幅度收细）
+  pos.xy += normalize(pos.xy + 1e-5) * uAudioBeat * 0.12;
+  pos.z  += uAudioBeat * 0.06;
 
   // —— 动效：鼠标扰动（微调：以切向扰动为主、横向拉长的椭圆影响域，避免圆形重力场观感）
   vec2 toMouse = uMouse - pos.xy;

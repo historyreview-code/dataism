@@ -8,6 +8,7 @@ export const presets = {
     id: 'drift',
     label: 'Drift',
     description: 'pure ambient drone',
+    descZh: '平流 · 极简长音底噪：低频缓缓推着云流动',
     available: true,
     nodes: [
       { type: 'Oscillator', id: 'osc1', freq: 55,   wave: 'sine', volume: -8  },
@@ -29,6 +30,7 @@ export const presets = {
     id: 'bloom',
     label: 'Bloom',
     description: 'organic breathing',
+    descZh: '呼吸 · 温润起伏：中频让粒子明暗一收一放',
     available: true,
     nodes: [
       { type: 'Oscillator', id: 'osc1', freq: 110, wave: 'sine',     volume: -10 },
@@ -50,6 +52,7 @@ export const presets = {
     id: 'pulse',
     label: 'Pulse',
     description: 'rhythmic heartbeat',
+    descZh: '脉搏 · 心跳节拍：鼓点让星云一阵阵舒张',
     available: true,
     nodes: [
       { type: 'Oscillator', id: 'osc1', freq: 55,   wave: 'sine',     volume: -8  },
@@ -72,6 +75,7 @@ export const presets = {
     id: 'storm',
     label: 'Storm',
     description: 'atmospheric noise',
+    descZh: '风暴 · 风噪掠过：高频沙沙如尘埃躁动',
     available: true,
     nodes: [
       { type: 'Noise',     id: 'noise', kind: 'white', volume: -22 },
@@ -92,6 +96,7 @@ export const presets = {
     id: 'tide',
     label: 'Tide',
     description: 'slow tidal motion',
+    descZh: '潮汐 · 三十秒一轮涨落：云如潮水聚散',
     available: true,
     nodes: [
       { type: 'Oscillator', id: 'osc1', freq: 73,  wave: 'sine', volume: -10 },
@@ -111,6 +116,7 @@ export const presets = {
     id: 'drone',
     label: 'Drone',
     description: 'human-made hum / a record of the drone age',
+    descZh: '低鸣 · 多旋翼的蜂鸣：无人机时代的声迹',
     available: true,
     nodes: [
       // 主蜂鸣：双 saw + 5 度失谐，模拟多旋翼电机共振

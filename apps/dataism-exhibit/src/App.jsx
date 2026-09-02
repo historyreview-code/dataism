@@ -392,7 +392,13 @@ export default function App() {
         />
       )}
 
-      <AudioOverlay enabled={audioEnabled} onEnable={enableAudio} kiosk={kiosk} />
+      <AudioOverlay
+        enabled={audioEnabled}
+        onEnable={enableAudio}
+        kiosk={kiosk}
+        label={presets[audioMode]?.label}
+        desc={presets[audioMode]?.descZh}
+      />
       <InteractionPulse interactionRef={interactionRef} />
 
       {!loaded && <LoadingScreen fading={fading} />}

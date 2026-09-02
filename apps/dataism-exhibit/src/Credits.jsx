@@ -60,6 +60,10 @@ export default function Credits({ open, onOpenChange, chapter, onModeChange, man
 
         <div className="credits-modal__section">
           <div className="credits-modal__heading">音景 · Soundscape</div>
+          <p className="credits-modal__para credits-modal__para--dim">
+            声音即数据：频谱与节拍直接驱动粒子——低频推动流动，中频控制明暗，
+            高频化为沙沙细颤，鼓点带来一阵阵舒张。接入现场声后，你的在场也加入其中。
+          </p>
           <div className="sound-presets">
             <button
               type="button"
@@ -77,7 +81,7 @@ export default function Credits({ open, onOpenChange, chapter, onModeChange, man
                 onClick={() => onModeChange(id)}
               >
                 <span className="sound-preset__label">{presets[id].label}</span>
-                <span className="sound-preset__desc">{presets[id].description}</span>
+                <span className="sound-preset__desc">{presets[id].descZh || presets[id].description}</span>
               </button>
             ))}
           </div>

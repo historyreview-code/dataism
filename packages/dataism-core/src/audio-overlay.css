@@ -41,6 +41,19 @@
 
 .audio-overlay--mute {
   animation: none;
+  flex-wrap: wrap;
+  max-width: min(420px, 72vw);
+  text-align: left;
+}
+
+.audio-overlay--mute .audio-overlay__desc {
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: none;
 }
 
 .audio-overlay.is-muted {
