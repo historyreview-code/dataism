@@ -124,16 +124,17 @@ void main() {
   pos.xy += normalize(pos.xy + 1e-5) * uAudioBeat * 0.3;
   pos.z  += uAudioBeat * 0.15;
 
-  // —— 动效：鼠标吸引 + 切向扰动（**只在鼠标附近 1.5 单位半径内**生效）
+  // —— 动效：鼠标扰动（微调：以切向扰动为主、横向拉长的椭圆影响域，避免圆形重力场观感）
   vec2 toMouse = uMouse - pos.xy;
-  float d = length(toMouse);
-  float radius = 1.5;
-  float falloff = smoothstep(radius, 0.0, d);
-  vec2 attract = normalize(toMouse + 1e-5) * falloff * uMouseStrength;
+  vec2 anisotropic = vec2(toMouse.x * 1.55, toMouse.y * 0.72);
+  float d = length(anisotropic);
+  float radius = 1.7;
+  float falloff = smoothstep(radius, 0.0, d) * 0.45;
   vec2 tangent = vec2(-toMouse.y, toMouse.x);
-  vec2 swirl = normalize(tangent + 1e-5) * falloff * uMouseStrength * 0.6;
-  pos.xy += (attract + swirl) * 0.3;
-  pos.z  += falloff * uMouseStrength * 0.15;
+  vec2 swirl = normalize(tangent + 1e-5) * falloff * uMouseStrength;
+  vec2 attract = normalize(toMouse + 1e-5) * falloff * uMouseStrength * 0.22;
+  pos.xy += swirl * 0.22 + attract * 0.10;
+  pos.z  += falloff * uMouseStrength * 0.05;
 
   // —— click 冲击波：从 uClickPos 扩散的环，强度按 uClickStrength 自动衰减
   vec2 toClick = pos.xy - uClickPos;
