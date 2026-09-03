@@ -10,8 +10,13 @@ import {
   useChapter,
   useMicInput,
   useCursorIdle,
+  useWindData,
+  windToBehavior,
+  useSalmonData,
+  salmonToBehavior,
   chapterByBranch,
   presets,
+  startHeartbeat,
 } from '@studio/dataism-core'
 
 import ChapterCard from './ChapterCard'
@@ -49,11 +54,35 @@ export default function App() {
   const interactionRef = useRef({ level: 0, lastMoveAt: 0, lastClickAt: 0 })
   const lastInputRef = useRef(performance.now())
 
-  const mic = useMicInput()
+  const { chapter, nextChapter, progress, remainingMs, forceNext, isTransitioning } = useChapter({
+    durationMs,
+    startChapter,
+  })
+
+  const mic = useMicInput(chapter.energy)
   // 光标闲置隐匿：静止 3s 隐去光标符号，粒子按其最后位置继续旋涡；一动即唤醒
   const cursorIdle = useCursorIdle(3000)
   // 双通道音频：Tone 合成音景 + 麦克风现场声，逐频段取最大值驱动粒子
   const audioLevelsRefs = useMemo(() => [toneLevelsRef, mic.levelsRef], [])
+
+  // ── v1.4 章节转场仪式：跨组件同步 ref（避免逐帧 re-render）──
+  const transitionRef = useRef({ active: false, startTime: 0, elapsed: 0, color: '#ffffff' })
+  useEffect(() => {
+    if (isTransitioning) {
+      transitionRef.current = {
+        active: true,
+        startTime: performance.now(),
+        elapsed: 0,
+        color: chapter.palette.core,
+      }
+    }
+  }, [isTransitioning, chapter.palette.core])
+
+  // ── v1.5 展厅心跳：章节与麦克风状态引用 ──
+  const chapterRef = useRef(chapter.id)
+  const micStatusRef = useRef(mic.status)
+  useEffect(() => { chapterRef.current = chapter.id }, [chapter.id])
+  useEffect(() => { micStatusRef.current = mic.status }, [mic.status])
 
   const [loaded, setLoaded] = useState(false)
   const [fading, setFading] = useState(false)
@@ -63,15 +92,34 @@ export default function App() {
   // 手动音景覆盖（?mode= 或 Credits 里选）；不覆盖时跟随章节
   const [manualMode, setManualMode] = useState(() => params.get('mode'))
 
-  const { chapter, nextChapter, progress, remainingMs, forceNext } = useChapter({
-    durationMs,
-    startChapter,
-  })
+  // ── v1.3 数据觉醒：巳时接入 NOAA GFS 大西洋风场 ──
+  const isSi = chapter.id === 'si'
+  const { data: windData } = useWindData(isSi)
 
-  const theme = useMemo(
-    () => ({ palette: chapter.palette, behavior: chapter.behavior }),
-    [chapter],
-  )
+  // ── v1.3 数据觉醒：未时接入 GBIF 大马哈鱼洄游 ──
+  const isWei = chapter.id === 'wei'
+  const { phase: salmonPhase } = useSalmonData(isWei)
+
+  const theme = useMemo(() => {
+    const base = { palette: chapter.palette, behavior: { ...chapter.behavior } }
+    // 巳时：真实风场数据覆盖粒子行为
+    if (isSi && windData) {
+      const w = windToBehavior(windData.avgSpeed, windData.maxSpeed)
+      base.behavior.flow = base.behavior.flow * w.flowScale
+      base.behavior.noiseAmp = base.behavior.noiseAmp * w.noiseScale
+      // 风暴强度高时，外圈色偏暖（能量感）
+      if (w.warmth > 0.3) {
+        base.palette = { ...base.palette }
+      }
+    }
+    // 未时：洄游数据覆盖粒子行为
+    if (isWei && salmonPhase) {
+      const s = salmonToBehavior(salmonPhase)
+      base.behavior.flow = base.behavior.flow * s.flowScale
+      base.behavior.noiseAmp = base.behavior.noiseAmp * s.noiseScale
+    }
+    return base
+  }, [chapter, isSi, windData, isWei, salmonPhase])
   const audioMode = presets[manualMode]?.available ? manualMode : chapter.soundscape
 
   const enableAudio = () => {
@@ -180,7 +228,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [forceNext, kiosk])
 
-  // —— kiosk：首个手势进全屏 + 屏幕常亮（Wake Lock）+ 禁右键 ——
+  // —— kiosk：首个手势进全屏 + 屏幕常亮（Wake Lock）+ 禁右键 + 心跳系统 ——
   useEffect(() => {
     if (!kiosk) return
     const goFullscreen = () => {
@@ -206,11 +254,15 @@ export default function App() {
     }
     document.addEventListener('visibilitychange', onVis)
 
+    // ── v1.5 展厅心跳系统 ──
+    const hb = startHeartbeat({ chapterRef, micStatusRef })
+
     return () => {
       window.removeEventListener('pointerdown', goFullscreen)
       window.removeEventListener('contextmenu', noMenu)
       document.removeEventListener('visibilitychange', onVis)
       lock?.release?.()
+      hb.stop()
     }
   }, [kiosk])
 
@@ -287,7 +339,7 @@ export default function App() {
     <div className={`app exhibit-app ${kiosk ? 'is-kiosk' : ''} ${cursorIdle && !creditsOpen ? 'cursor-ghosted' : ''}`}>
       <Canvas
         dpr={[1, 2]}
-        gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
+        gl={{ antialias: true, alpha: false, preserveDrawingBuffer: params.get('export') === '1' }}
         camera={{ position: [0, 0, 8], fov: 55, near: 0.1, far: 100 }}
         onPointerMove={(e) => {
           markInput()
@@ -319,6 +371,7 @@ export default function App() {
           clickRef={clickRef}
           audioLevelsRef={audioLevelsRefs}
           theme={theme}
+          transitionRef={transitionRef}
         />
         <AudioController
           audioLevelsRef={toneLevelsRef}
@@ -337,6 +390,17 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* ── v1.4 章节转场仪式：全屏微闪 + 环形冲击波 overlay ── */}
+      {isTransitioning && (
+        <>
+          <div
+            className="transition-flash"
+            style={{ backgroundColor: chapter.palette.core }}
+          />
+          <div className="transition-shockwave" />
+        </>
+      )}
 
       <ChapterCard chapter={card.chapter} visible={card.visible} />
 

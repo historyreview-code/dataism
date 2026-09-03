@@ -17,12 +17,18 @@ import { CHAPTERS, CHAPTER_MS, chapterClockAt } from './chapters.js'
  *   remainingMs             距离下一次换章的毫秒数
  *   forceNext()             手动跳到下一章（演示用；真实时钟下按住到自然边界自动恢复）
  *   synthetic               是否合成时钟
+ *   isTransitioning         是否处于换章转场中（3s 仪式感窗口）
  */
 export function useChapter({ durationMs = null, startChapter = 0 } = {}) {
   const synthetic = typeof durationMs === 'number' && durationMs > 0
   const anchorRef = useRef(Date.now()) // 合成时钟锚点
-  const holdRef = useRef(null)         // forceNext 的手动覆盖：{ index, natural } 
+  const holdRef = useRef(null)         // forceNext 的手动覆盖：{ index, natural }
   const [, setTick] = useState(0)
+
+  // ── v1.4 章节转场仪式：换章时触发 3s 转场窗口 ──
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const prevIndexRef = useRef(startChapter)
+  const transitionTimerRef = useRef(null)
 
   // 定时重算（合成时钟快放时提高刷新率，保证进度条平滑）
   useEffect(() => {
@@ -67,6 +73,27 @@ export function useChapter({ durationMs = null, startChapter = 0 } = {}) {
     ? durationMs * (1 - state.progress)
     : CHAPTER_MS * (1 - state.progress)
 
+  // ── 检测章节切换，触发转场仪式 ──
+  useEffect(() => {
+    if (prevIndexRef.current !== state.index) {
+      // 章节切换了
+      prevIndexRef.current = state.index
+      setIsTransitioning(true)
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+      transitionTimerRef.current = setTimeout(() => {
+        setIsTransitioning(false)
+        transitionTimerRef.current = null
+      }, 3000)
+    }
+  }, [state.index])
+
+  // 清理
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current)
+    }
+  }, [])
+
   const forceNext = useCallback(() => {
     const cur = compute()
     if (synthetic) {
@@ -81,5 +108,5 @@ export function useChapter({ durationMs = null, startChapter = 0 } = {}) {
     }
   }, [compute, synthetic, durationMs])
 
-  return { chapter, nextChapter, progress: state.progress, remainingMs, forceNext, synthetic }
+  return { chapter, nextChapter, progress: state.progress, remainingMs, forceNext, synthetic, isTransitioning }
 }

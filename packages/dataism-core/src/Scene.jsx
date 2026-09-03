@@ -5,6 +5,8 @@ import { OrbitControls } from '@react-three/drei'
 import ParticleCloud from './ParticleCloud'
 import ParticleRain from './ParticleRain'
 import PointerCatcher from './PointerCatcher'
+import { ContextRecoveryBoundary } from './ContextRecovery'
+import PostProcessing from './PostProcessing'
 
 // 默认构图适配：让椭圆云横向铺满视口（云 x 半径 3.2 → 目标占视口宽 ~86%）
 // 相机基准：z=8、fov=55（App 默认相机）；仅随视口尺寸变化，缩放交互不受影响。
@@ -30,14 +32,14 @@ function FitGroup({ children }) {
   )
 }
 
-export default function Scene({ mouseRef, clickRef, audioLevelsRef, theme }) {
+export default function Scene({ mouseRef, clickRef, audioLevelsRef, theme, transitionRef }) {
   return (
-    <>
+    <ContextRecoveryBoundary>
       <color attach="background" args={['#000000']} />
 
       <FitGroup>
         {/* 顶部雨（雨色跟随章节 core 高光色，缺省 = v1.0 纯白；分辨率自适应） */}
-        <ParticleRain theme={theme} pointEnv />
+        <ParticleRain theme={theme} pointEnv transitionRef={transitionRef} />
 
         {/* 主粒子云（theme 控制配色与行为，缺省 = v1.0 原版；分辨率自适应） */}
         <ParticleCloud
@@ -46,6 +48,7 @@ export default function Scene({ mouseRef, clickRef, audioLevelsRef, theme }) {
           audioLevelsRef={audioLevelsRef}
           theme={theme}
           pointEnv
+          transitionRef={transitionRef}
         />
       </FitGroup>
 
@@ -61,6 +64,9 @@ export default function Scene({ mouseRef, clickRef, audioLevelsRef, theme }) {
         maxDistance={14}
         zoomSpeed={0.5}
       />
-    </>
+
+      {/* v1.4 审美跃迁：Bloom 辉光 + Vignette 暗角 */}
+      <PostProcessing />
+    </ContextRecoveryBoundary>
   )
 }

@@ -1,12 +1,14 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createNoise3D } from 'simplex-noise'
 
 import cloudVert from './shaders/cloud.vert?raw'
 import cloudFrag from './shaders/cloud.frag?raw'
+import { useRegisterRebuild } from './ContextRecovery.jsx'
+import { getCloudCount } from './adaptive.js'
 
-const COUNT = 50000
+const COUNT = getCloudCount()
 
 // v1.0 原版主题（dataism-17 不传 theme 时使用，保证零回归）
 export const DEFAULT_THEME = {
@@ -48,109 +50,186 @@ function mulberry32(seed) {
   }
 }
 
-/**
- * ParticleCloud —— 主题化粒子云引擎
- *
- * props:
- *   mouseRef / clickRef    交互 ref（同 v1.0）
- *   audioLevelsRef         单个 ref 或 ref 数组（多路音频取逐频段最大值：
- *                          Tone 输出频谱 + 麦克风现场声可以同时驱动粒子）
- *   theme                  { palette:{inner,outer,core}, behavior:{flow,noiseAmp,sizeScale,mouseStrength} }
- *                          变化时颜色/行为在 ~12s 内平滑过渡（不重建几何体）
- */
-export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, theme, pointEnv }) {
-  const matRef = useRef()
-  const { gl } = useThree()
+// ── 生成粒子分布数据（纯 CPU 侧，不涉及 GPU）──
+function generateCloudData(count) {
+  const rand = mulberry32(20260826)
+  const noise3D = createNoise3D(rand)
 
-  const initialTheme = useMemo(() => normalizeTheme(theme), []) // 只用于首帧，theme 变化走过渡
-  const themeTargetRef = useRef(initialTheme)
+  const positions = new Float32Array(count * 3)
+  const seeds = new Float32Array(count)
+  const sizes = new Float32Array(count)
 
-  const { geometry, uniforms } = useMemo(() => {
-    const rand = mulberry32(20260826)
-    const noise3D = createNoise3D(rand)
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3
 
-    const positions = new Float32Array(COUNT * 3)
-    const seeds = new Float32Array(COUNT)
-    const sizes = new Float32Array(COUNT)
+    let x, y, z
+    do {
+      x = (rand() * 2 - 1)
+      y = (rand() * 2 - 1)
+    } while (x * x + y * y > 1)
 
-    // 让粒子在椭圆带里**均匀分布**（环带：中心稍密，外圈稍密，中间稀）
-    // 椭圆参数：x 半径 3.2，y 半径 0.9
-    for (let i = 0; i < COUNT; i++) {
-      const i3 = i * 3
+    x *= 3.2
+    y *= 0.9
+    z = (rand() * 2 - 1) * 0.4
 
-      // 在椭圆里均匀采样（拒绝采样，落在外面就重新抛）
-      let x, y, z
-      do {
-        x = (rand() * 2 - 1)
-        y = (rand() * 2 - 1)
-      } while (x * x + y * y > 1)
+    const angle = Math.atan2(y / 0.9, x / 3.2)
+    const targetR = 0.45 + Math.pow(rand(), 0.7) * 0.55
+    x = Math.cos(angle) * targetR * 3.2
+    y = Math.sin(angle) * targetR * 0.9
 
-      // 椭圆带（拉宽 x、压扁 y）
-      x *= 3.2
-      y *= 0.9
-      z = (rand() * 2 - 1) * 0.4
-
-      // 径向偏置：让粒子分布略偏向外圈（r=0.4~1.0）
-      const angle = Math.atan2(y / 0.9, x / 3.2)
-      const targetR = 0.45 + Math.pow(rand(), 0.7) * 0.55  // 偏外圈
-      x = Math.cos(angle) * targetR * 3.2
-      y = Math.sin(angle) * targetR * 0.9
-
-      // 用噪声给整体加点"流形"不规则感
-      const n = noise3D(x * 0.5, y * 1.2, z * 0.8)
-      const density = 0.7 + n * 0.2
-      if (rand() > density) {
-        // 噪声筛掉的少数粒子，重新摆到外圈
-        const a = rand() * Math.PI * 2
-        const rr = 0.6 + rand() * 0.4
-        x = Math.cos(a) * rr * 3.2
-        y = Math.sin(a) * rr * 0.9
-      }
-
-      positions[i3]     = x
-      positions[i3 + 1] = y
-      positions[i3 + 2] = z
-
-      seeds[i] = rand()
-      // 大部分小点 + 少量亮大点（控制亮度分布）
-      sizes[i] = 0.4 + Math.pow(rand(), 4) * 2.5
+    const n = noise3D(x * 0.5, y * 1.2, z * 0.8)
+    const density = 0.7 + n * 0.2
+    if (rand() > density) {
+      const a = rand() * Math.PI * 2
+      const rr = 0.6 + rand() * 0.4
+      x = Math.cos(a) * rr * 3.2
+      y = Math.sin(a) * rr * 0.9
     }
 
+    positions[i3]     = x
+    positions[i3 + 1] = y
+    positions[i3 + 2] = z
+
+    seeds[i] = rand()
+    sizes[i] = 0.4 + Math.pow(rand(), 4) * 2.5
+  }
+
+  return { positions, seeds, sizes }
+}
+
+// ── 从 theme 构建 uniforms 初始值 ──
+function buildUniforms(theme, gl) {
+  const t = normalizeTheme(theme)
+  return {
+    uTime:          { value: 0 },
+    uMouse:         { value: new THREE.Vector2(99, 99) },
+    uMouseStrength: { value: t.behavior.mouseStrength },
+    uPixelRatio:    { value: Math.min(gl.getPixelRatio(), 1.5) },
+    uSizeBase:      { value: 8.0 },
+    uClickPos:      { value: new THREE.Vector2(99, 99) },
+    uClickTime:     { value: -100.0 },
+    uClickStrength: { value: 0.0 },
+    uAudioLow:      { value: 0 },
+    uAudioMid:      { value: 0 },
+    uAudioHigh:     { value: 0 },
+    uAudioBeat:     { value: 0 },
+    uColorInner:    { value: new THREE.Color(t.palette.inner) },
+    uColorOuter:    { value: new THREE.Color(t.palette.outer) },
+    uColorCore:     { value: new THREE.Color(t.palette.core) },
+    uFlowSpeed:     { value: t.behavior.flow },
+    uNoiseAmp:      { value: t.behavior.noiseAmp },
+    uSizeScale:     { value: t.behavior.sizeScale },
+    uOrbitAmp:      { value: t.behavior.orbitAmp },
+    uOrbitTempo:    { value: t.behavior.orbitTempo },
+    uCoreLift:      { value: t.behavior.coreLift },
+    uDotGain:       { value: t.behavior.dotGain },
+    uPointEnv:      { value: 1.0 },
+    // ── v1.4 章节转场仪式：粒子凝滞 + 环形冲击波 ──
+    uTransitionFreeze: { value: 0.0 },
+    uTransitionRing:   { value: -10.0 },
+  }
+}
+
+/**
+ * ParticleCloud —— 主题化粒子云引擎（v1.4 转场仪式版）
+ *
+ * 新增展厅级健壮性：
+ *   - WebGL 上下文丢失恢复（ContextRecovery 兼容）
+ *   - NaN 免疫护栏（保留）
+ *   - 调试全局污染仅在 ?export=1 模式下启用
+ *   - 章节转场仪式：粒子凝滞 + 环形冲击波
+ */
+export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, theme, pointEnv, transitionRef }) {
+  const matRef = useRef()
+  const pointsRef = useRef()
+  const { gl } = useThree()
+
+  const initialTheme = useMemo(() => normalizeTheme(theme), [])
+  const themeTargetRef = useRef(initialTheme)
+
+  // ── 保存原始 CPU 数据，用于上下文恢复时重建 ──
+  const dataRef = useRef(null)
+  if (!dataRef.current) {
+    dataRef.current = generateCloudData(COUNT)
+  }
+
+  // ── 初始化：从保存的数据创建 GPU 资源 ──
+  const { geometry, uniforms } = useMemo(() => {
+    const d = dataRef.current
     const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setAttribute('aSeed',    new THREE.BufferAttribute(seeds, 1))
-    geo.setAttribute('aSize',    new THREE.BufferAttribute(sizes, 1))
+    geo.setAttribute('position', new THREE.BufferAttribute(d.positions.slice(), 3))
+    geo.setAttribute('aSeed',    new THREE.BufferAttribute(d.seeds.slice(), 1))
+    geo.setAttribute('aSize',    new THREE.BufferAttribute(d.sizes.slice(), 1))
 
     return {
       geometry: geo,
-      uniforms: {
-        uTime:          { value: 0 },
-        uMouse:         { value: new THREE.Vector2(99, 99) },
-        uMouseStrength: { value: initialTheme.behavior.mouseStrength },
-        uPixelRatio:    { value: Math.min(gl.getPixelRatio(), 1.5) },
-        uSizeBase:      { value: 8.0 },
-        uClickPos:      { value: new THREE.Vector2(99, 99) },
-        uClickTime:     { value: -100.0 },   // 负大值 = 无冲击波
-        uClickStrength: { value: 0.0 },      // 0~1 自动衰减
-        uAudioLow:      { value: 0 },
-        uAudioMid:      { value: 0 },
-        uAudioHigh:     { value: 0 },
-        uAudioBeat:     { value: 0 },
-        // —— 主题 uniforms（默认 = v1.0 原版）——
-        uColorInner:    { value: new THREE.Color(initialTheme.palette.inner) },
-        uColorOuter:    { value: new THREE.Color(initialTheme.palette.outer) },
-        uColorCore:     { value: new THREE.Color(initialTheme.palette.core) },
-        uFlowSpeed:     { value: initialTheme.behavior.flow },
-        uNoiseAmp:      { value: initialTheme.behavior.noiseAmp },
-        uSizeScale:     { value: initialTheme.behavior.sizeScale },
-        uOrbitAmp:      { value: initialTheme.behavior.orbitAmp },
-        uOrbitTempo:    { value: initialTheme.behavior.orbitTempo },
-        uCoreLift:      { value: initialTheme.behavior.coreLift },
-        uDotGain:       { value: initialTheme.behavior.dotGain },
-        uPointEnv:      { value: 1.0 },   // 分辨率环境系数（pointEnv=true 时逐帧补偿）
-      },
+      uniforms: buildUniforms(initialTheme, gl),
     }
+  }, [gl, initialTheme])
+
+  // ── 重建函数：WebGL 上下文恢复时调用 ──
+  const rebuild = useCallback(() => {
+    const d = dataRef.current
+    if (!d || !pointsRef.current) return
+
+    // dispose 旧资源
+    pointsRef.current.geometry?.dispose?.()
+    pointsRef.current.material?.dispose?.()
+
+    // 重建 geometry
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(d.positions.slice(), 3))
+    geo.setAttribute('aSeed',    new THREE.BufferAttribute(d.seeds.slice(), 1))
+    geo.setAttribute('aSize',    new THREE.BufferAttribute(d.sizes.slice(), 1))
+
+    // 重建 material（uniforms 用当前目标值初始化，确保恢复后不会跳回默认色）
+    const target = themeTargetRef.current
+    const newUniforms = {
+      uTime:          { value: 0 },
+      uMouse:         { value: new THREE.Vector2(99, 99) },
+      uMouseStrength: { value: target.behavior.mouseStrength },
+      uPixelRatio:    { value: Math.min(gl.getPixelRatio(), 1.5) },
+      uSizeBase:      { value: 8.0 },
+      uClickPos:      { value: new THREE.Vector2(99, 99) },
+      uClickTime:     { value: -100.0 },
+      uClickStrength: { value: 0.0 },
+      uAudioLow:      { value: 0 },
+      uAudioMid:      { value: 0 },
+      uAudioHigh:     { value: 0 },
+      uAudioBeat:     { value: 0 },
+      uColorInner:    { value: new THREE.Color(target.palette.inner) },
+      uColorOuter:    { value: new THREE.Color(target.palette.outer) },
+      uColorCore:     { value: new THREE.Color(target.palette.core) },
+      uFlowSpeed:     { value: target.behavior.flow },
+      uNoiseAmp:      { value: target.behavior.noiseAmp },
+      uSizeScale:     { value: target.behavior.sizeScale },
+      uOrbitAmp:      { value: target.behavior.orbitAmp },
+      uOrbitTempo:    { value: target.behavior.orbitTempo },
+      uCoreLift:      { value: target.behavior.coreLift },
+      uDotGain:       { value: target.behavior.dotGain },
+      uPointEnv:      { value: 1.0 },
+      // ── v1.4 转场仪式 uniform（重建时保持静默）──
+      uTransitionFreeze: { value: 0.0 },
+      uTransitionRing:   { value: -10.0 },
+    }
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: newUniforms,
+      vertexShader: cloudVert,
+      fragmentShader: cloudFrag,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.NormalBlending,
+    })
+
+    pointsRef.current.geometry = geo
+    pointsRef.current.material = mat
+    matRef.current = mat
+
+    console.info('[ParticleCloud] GPU resources rebuilt after context restore')
   }, [gl])
+
+  useRegisterRebuild(rebuild)
 
   // theme 变化 → 只更新目标（颜色预构建，避免逐帧分配），过渡在 useFrame 里做
   useEffect(() => {
@@ -159,9 +238,12 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     const ti = new THREE.Color(t.palette.inner)
     const to = new THREE.Color(t.palette.outer)
     const tc = new THREE.Color(t.palette.core)
-    if (window.__shichenRaf !== undefined) {
+
+    // v1.2 修复：调试探针仅在 ?export=1 模式下启用，不再污染 window 全局
+    if (typeof window !== 'undefined' && window.__shichenRaf !== undefined) {
       window.__shichenTarget = { i: probe(ti), o: probe(to), c: probe(tc), src: String(t.palette.inner) }
     }
+
     themeTargetRef.current = {
       palette: { inner: ti, outer: to, core: tc },
       behavior: t.behavior,
@@ -187,7 +269,8 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
   }
 
   useFrame((state, dt) => {
-    if (window.__shichenRaf !== undefined) {
+    // v1.2 修复：调试探针仅在 ?export=1 模式下启用
+    if (typeof window !== 'undefined' && window.__shichenRaf !== undefined) {
       window.__shichenDraw = (window.__shichenDraw || 0) + 1
       if (window.__shichenDraw % 90 === 0) {
         const u = matRef.current ? matRef.current.uniforms : null
@@ -198,14 +281,14 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
         } : 'nomat'
       }
     }
+
     if (!matRef.current) return
     const u = matRef.current.uniforms
     const t = state.clock.elapsedTime
     u.uTime.value = t
 
     // —— 主题过渡（颜色 lerp + 标量 lerp，指数趋近）——
-    // NaN 免疫护栏：任何一步出现非有限值（病态 dt / 目标异常），立即从目标恢复。
-    // 这同时是展厅级健壮性加固：uniform 永不允许毒化成黑屏。
+    // NaN 免疫护栏：任何一步出现非有限值，立即从目标恢复。
     const target = themeTargetRef.current
     const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
     const safeK = isFinite(k) ? k : 0
@@ -230,10 +313,28 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     u.uCoreLift.value      = safeNum(u.uCoreLift.value, target.behavior.coreLift)
     u.uDotGain.value       = safeNum(u.uDotGain.value, target.behavior.dotGain)
 
-    // —— 分辨率环境补偿：gl_PointSize 是绝对像素，大窗 / HiDPI 下粒子相对面积缩小、
-    //    云显稀薄。目标：s_eff/H 跨窗口恒定（亮度比≈1）。
-    //    公式 v2：H 感知指数线性（^1.1 微增大屏辉光感），只保留防次像素下限。
-    //    （v1 的 max(.85,·) 下限会把小窗端抬高，造成大/小亮度比跌回 0.53）
+    // —— v1.4 章节转场仪式：粒子凝滞 + 环形冲击波 ─—
+    const tr = transitionRef?.current
+    if (tr && tr.active) {
+      const elapsed = performance.now() - tr.startTime
+      // 0~1.5s：凝滞到 5% 流速；1.5~3s：线性恢复
+      let freeze = 0.0
+      if (elapsed < 1500) {
+        freeze = 0.95
+      } else if (elapsed < 3000) {
+        freeze = 0.95 * (1.0 - (elapsed - 1500) / 1500)
+      }
+      u.uTransitionFreeze.value += (freeze - u.uTransitionFreeze.value) * 0.2
+      // 环形冲击波：0~2s 内从中心向外扫到 r=5.0
+      const ringTarget = elapsed < 2000 ? (elapsed / 2000) * 5.0 : -10.0
+      u.uTransitionRing.value = ringTarget
+    } else {
+      // 转场结束，平滑归零
+      u.uTransitionFreeze.value += (0.0 - u.uTransitionFreeze.value) * 0.15
+      u.uTransitionRing.value = -10.0
+    }
+
+    // —— 分辨率环境补偿 ——
     if (pointEnv) {
       const hRatio = Math.pow(state.size.height / 1050, 1.10)
       const envTarget =
@@ -246,18 +347,16 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
     m.x += (mouseRef.current.x - m.x) * 0.12
     m.y += (mouseRef.current.y - m.y) * 0.12
 
-    // click 冲击波：处理 pending 标记 + 2 秒线性衰减
+    // click 冲击波
     if (clickRef && clickRef.current && clickRef.current.pending) {
-      // 把 clickPos 同步给 shader，记录点击瞬间的时间
       u.uClickPos.value.set(clickRef.current.x, clickRef.current.y)
       u.uClickTime.value = t
-      clickRef.current.pending = false   // 清掉标记
+      clickRef.current.pending = false
     }
-    // 强度按时间自动衰减
     const elapsed = t - u.uClickTime.value
     u.uClickStrength.value = Math.max(0, 1.0 - elapsed / 2.0)
 
-    // audio 平滑跟随（lerp 让电平更柔，避免频谱"锯齿"）
+    // audio 平滑跟随
     const merged = readMergedLevels()
     if (merged) {
       const lerp = 0.25
@@ -269,7 +368,7 @@ export default function ParticleCloud({ mouseRef, clickRef, audioLevelsRef, them
   })
 
   return (
-    <points geometry={geometry} frustumCulled={false}>
+    <points ref={pointsRef} geometry={geometry} frustumCulled={false}>
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}

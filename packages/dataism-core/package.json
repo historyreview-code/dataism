@@ -17,14 +17,16 @@
     "test": "echo \"no tests yet\""
   },
   "peerDependencies": {
+    "@react-three/drei": ">=9",
+    "@react-three/fiber": ">=8",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
     "three": ">=0.150",
-    "@react-three/fiber": ">=8",
-    "@react-three/drei": ">=9",
     "tone": ">=14"
   },
   "dependencies": {
+    "@react-three/postprocessing": "^3.1.1",
+    "postprocessing": "^6.39.4",
     "simplex-noise": "^4.0.3"
   }
 }

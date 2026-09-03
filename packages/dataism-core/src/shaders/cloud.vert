@@ -25,6 +25,14 @@ uniform float uOrbitAmp;        // 星云轨道场摆幅（rad，默认 0 = 关�
 uniform float uOrbitTempo;      // 星云轨道场节奏（rad/s，默认 0 = 关闭）
 uniform float uPointEnv;        // 分辨率环境系数（dpr × 视口高度补偿，默认 1.0 = 不补偿）
 uniform float uCoreLift;        // 中央粒子尺寸增益（默认 0 = 关闭）
+uniform float uDotGain;         // 亮核增益（默认 1.0 = v1.0 原样）
+// ── v1.4 章节转场仪式 ──
+uniform float uTransitionFreeze; // 0=正常, 1=完全凝滞
+uniform float uTransitionRing;   // 冲击波环半径, <0=未激活
+
+varying float vSeed;
+varying float vAlpha;
+varying float vRadius;
 
 varying float vSeed;
 varying float vAlpha;
@@ -98,6 +106,11 @@ void main() {
 
   // —— 动效：水平流场（粒子缓慢穿过视野，速度温和）
   //    低频让流场加速：让粒子随低频"涌出"
+  //    v1.4 转场凝滞：uTransitionFreeze 接近 1 时流速降到接近 0
+  float flowSpeed = uFlowSpeed * (1.0 + uAudioLow * 0.7) * (1.0 - uTransitionFreeze);
+  float xRange = 5.0;
+  pos.x = mod(pos.x + uTime * flowSpeed + xRange * 0.5, xRange) - xRange * 0.5;
+  //    低频让流场加速：让粒子随低频"涌出"
   float flowSpeed = uFlowSpeed * (1.0 + uAudioLow * 0.7);
   float xRange = 5.0;
   pos.x = mod(pos.x + uTime * flowSpeed + xRange * 0.5, xRange) - xRange * 0.5;
@@ -137,6 +150,25 @@ void main() {
   pos.z  += falloff * uMouseStrength * 0.05;
 
   // —— click 冲击波：从 uClickPos 扩散的环，强度按 uClickStrength 自动衰减
+  vec2 toClick = pos.xy - uClickPos;
+  float dc = length(toClick);
+  float waveR = (uTime - uClickTime) * 2.5;          // 环扩张速度（温和）
+  float ringWidth = 0.6;
+  float ring = exp(-pow(dc - waveR, 2.0) / (ringWidth * ringWidth));
+  pos.xy += normalize(toClick + 1e-5) * ring * uClickStrength * 0.3;
+
+  // ── v1.4 章节转场仪式：环形冲击波从中心向外扫过 ──
+  if (uTransitionRing > 0.0) {
+    float dCenter = length(pos.xy);
+    float tRingWidth = 0.45;
+    float tRing = exp(-pow(dCenter - uTransitionRing, 2.0) / (tRingWidth * tRingWidth));
+    // 冲击波：径向轻推 + 纵向微压，制造"气浪"感
+    vec2 radial = normalize(pos.xy + 1e-5);
+    pos.xy += radial * tRing * 0.18;
+    pos.z  += tRing * 0.08;
+  }
+
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   vec2 toClick = pos.xy - uClickPos;
   float dc = length(toClick);
   float waveR = (uTime - uClickTime) * 2.5;          // 环扩张速度（温和）

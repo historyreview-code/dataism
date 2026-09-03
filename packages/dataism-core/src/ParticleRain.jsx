@@ -1,11 +1,13 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
 import rainVert from './shaders/rain.vert?raw'
 import rainFrag from './shaders/rain.frag?raw'
+import { useRegisterRebuild } from './ContextRecovery.jsx'
+import { getRainCount } from './adaptive.js'
 
-const COUNT = 4000
+const COUNT = getRainCount()
 // 与 ParticleCloud 同步的主题过渡速率
 const THEME_LERP_RATE = 0.25
 // v1.0 原版雨色 = 纯白（不传 theme 时保持零回归）
@@ -20,36 +22,50 @@ function mulberry32(seed) {
   }
 }
 
+// ── 生成雨滴分布数据（纯 CPU 侧）──
+function generateRainData(count) {
+  const rand = mulberry32(42)
+  const positions = new Float32Array(count * 3)
+  const seeds = new Float32Array(count)
+  const speeds = new Float32Array(count)
+
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3
+    positions[i3]     = (rand() * 2 - 1) * 3.2
+    positions[i3 + 1] = (rand() * 2 - 1) * 2.5
+    positions[i3 + 2] = (rand() * 2 - 1) * 0.4 - 0.5
+    seeds[i]  = rand()
+    speeds[i] = 0.6 + rand() * 1.4
+  }
+
+  return { positions, seeds, speeds }
+}
+
 /**
- * ParticleRain —— 顶部坠落的细雨
- * theme 变化时雨色跟随章节 core 高光色平滑过渡；
- * 不传 theme 保持 v1.0 纯白（零回归）。
+ * ParticleRain —— 顶部坠落的细雨（v1.4 转场仪式兼容版）
+ *
+ * 新增：WebGL 上下文丢失恢复（ContextRecovery 兼容）
+ *       转场凝滞（transitionRef 同步 freeze）
  */
-export default function ParticleRain({ theme, pointEnv }) {
+export default function ParticleRain({ theme, pointEnv, transitionRef }) {
   const matRef = useRef()
+  const pointsRef = useRef()
   const { gl } = useThree()
 
   const rainColorRef = useRef(null)
 
+  // ── 保存原始 CPU 数据，用于上下文恢复时重建 ──
+  const dataRef = useRef(null)
+  if (!dataRef.current) {
+    dataRef.current = generateRainData(COUNT)
+  }
+
   const { geometry, uniforms } = useMemo(() => {
-    const rand = mulberry32(42)
-    const positions = new Float32Array(COUNT * 3)
-    const seeds = new Float32Array(COUNT)
-    const speeds = new Float32Array(COUNT)
-
-    for (let i = 0; i < COUNT; i++) {
-      const i3 = i * 3
-      positions[i3]     = (rand() * 2 - 1) * 3.2          // x 横跨视野
-      positions[i3 + 1] = (rand() * 2 - 1) * 2.5          // y 随机起点
-      positions[i3 + 2] = (rand() * 2 - 1) * 0.4 - 0.5    // z 略后景
-      seeds[i]  = rand()
-      speeds[i] = 0.6 + rand() * 1.4
-    }
-
+    const d = dataRef.current
     const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geo.setAttribute('aSeed',    new THREE.BufferAttribute(seeds, 1))
-    geo.setAttribute('aSpeed',   new THREE.BufferAttribute(speeds, 1))
+    geo.setAttribute('position', new THREE.BufferAttribute(d.positions.slice(), 3))
+    geo.setAttribute('aSeed',    new THREE.BufferAttribute(d.seeds.slice(), 1))
+    geo.setAttribute('aSpeed',   new THREE.BufferAttribute(d.speeds.slice(), 1))
 
     return {
       geometry: geo,
@@ -57,10 +73,48 @@ export default function ParticleRain({ theme, pointEnv }) {
         uTime:       { value: 0 },
         uPixelRatio: { value: Math.min(gl.getPixelRatio(), 1.5) },
         uRainColor:  { value: new THREE.Color(RAIN_WHITE) },
-        uRainEnv:    { value: 1.0 },   // 分辨率环境系数（pointEnv=true 时逐帧补偿）
+        uRainEnv:    { value: 1.0 },
+        uTransitionFreeze: { value: 0.0 },
       },
     }
   }, [gl])
+
+  // ── 重建函数：WebGL 上下文恢复时调用 ──
+  const rebuild = useCallback(() => {
+    const d = dataRef.current
+    if (!d || !pointsRef.current) return
+
+    pointsRef.current.geometry?.dispose?.()
+    pointsRef.current.material?.dispose?.()
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(d.positions.slice(), 3))
+    geo.setAttribute('aSeed',    new THREE.BufferAttribute(d.seeds.slice(), 1))
+    geo.setAttribute('aSpeed',   new THREE.BufferAttribute(d.speeds.slice(), 1))
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime:       { value: 0 },
+        uPixelRatio: { value: Math.min(gl.getPixelRatio(), 1.5) },
+        uRainColor:  { value: new THREE.Color(RAIN_WHITE) },
+        uRainEnv:    { value: 1.0 },
+        uTransitionFreeze: { value: 0.0 },
+      },
+      vertexShader: rainVert,
+      fragmentShader: rainFrag,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+
+    pointsRef.current.geometry = geo
+    pointsRef.current.material = mat
+    matRef.current = mat
+
+    console.info('[ParticleRain] GPU resources rebuilt after context restore')
+  }, [gl])
+
+  useRegisterRebuild(rebuild)
 
   // theme 变化 → 预构建目标色，过渡在 useFrame 里做
   useEffect(() => {
@@ -71,7 +125,6 @@ export default function ParticleRain({ theme, pointEnv }) {
     if (!matRef.current) return
     matRef.current.uniforms.uTime.value = state.clock.elapsedTime
 
-    // 分辨率环境补偿（与 ParticleCloud 同公式 v2：无小窗下限，防次像素除外）
     if (pointEnv) {
       const hRatio = Math.pow(state.size.height / 1050, 1.10)
       const envTarget =
@@ -84,10 +137,26 @@ export default function ParticleRain({ theme, pointEnv }) {
       const k = 1 - Math.exp(-THEME_LERP_RATE * Math.min(dt, 0.1))
       matRef.current.uniforms.uRainColor.value.lerp(rainColorRef.current, k)
     }
+
+    // ── v1.4 转场凝滞：同步 ParticleCloud 的 freeze 状态 ──
+    const tr = transitionRef?.current
+    const u = matRef.current.uniforms
+    if (tr && tr.active) {
+      const elapsed = performance.now() - tr.startTime
+      let freeze = 0.0
+      if (elapsed < 1500) {
+        freeze = 0.95
+      } else if (elapsed < 3000) {
+        freeze = 0.95 * (1.0 - (elapsed - 1500) / 1500)
+      }
+      u.uTransitionFreeze.value += (freeze - u.uTransitionFreeze.value) * 0.2
+    } else {
+      u.uTransitionFreeze.value += (0.0 - u.uTransitionFreeze.value) * 0.15
+    }
   })
 
   return (
-    <points geometry={geometry} frustumCulled={false}>
+    <points ref={pointsRef} geometry={geometry} frustumCulled={false}>
       <shaderMaterial
         ref={matRef}
         uniforms={uniforms}
